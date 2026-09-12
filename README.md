@@ -58,3 +58,12 @@ The app no longer relies on the original hard-coded sample slate.
 - Refresh Week + Live Spreads loads the real weekly slate first, then overlays live market lines.
 - Live refresh never overwrites the frozen ESPN Pool Line.
 - This eliminates stale/mismatched sample games such as incorrect KC lines persisting from the prototype.
+
+
+## V6 storage / zero-line fix
+Fixes a V5 bug where the entire game array was accidentally written into the matchup-based pool-line storage key.
+
+- Automatically migrates old `ats_pool_games_2026_wN` arrays into the new matchup map.
+- Also repairs the buggy V5 case where an array was stored under `ats_pool_lines_2026_wN`.
+- Refresh Live Spreads never writes live market lines into the frozen pool-line store.
+- New slates show `—` for live market until a verified market refresh succeeds, rather than displaying misleading 0.0 lines.
