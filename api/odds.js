@@ -13,6 +13,11 @@ function median(arr){
   const m=Math.floor(a.length/2);
   return a.length%2?a[m]:(a[m-1]+a[m])/2;
 }
+function strictNumber(v){
+  if(v===null||v===undefined||v==="") return null;
+  const n=Number(v);
+  return Number.isFinite(n)?n:null;
+}
 const MAJOR=["draftkings","fanduel","betmgm","caesars","espnbet","bet365"];
 
 function sideBookSpreads(odd){
@@ -21,8 +26,8 @@ function sideBookSpreads(odd){
   for(const b of MAJOR){
     const rec=books[b];
     if(!rec||rec.available===false)continue;
-    const spread=Number(rec.spread);
-    if(Number.isFinite(spread)) out.push({book:b,spread});
+    const spread=strictNumber(rec.spread);
+    if(spread!==null) out.push({book:b,spread});
   }
   return out;
 }
@@ -77,8 +82,8 @@ export default async function handler(req,res){
         bookDetail=paired.slice(0,4).join(" | ");
       } else {
         // Only if there are insufficient major-book observations, use fairSpread.
-        const hs=Number(ho.fairSpread), as=Number(ao.fairSpread);
-        if(Number.isFinite(hs)&&Number.isFinite(as)){
+        const hs=strictNumber(ho.fairSpread), as=strictNumber(ao.fairSpread);
+        if(hs!==null&&as!==null){
           homeSpread=hs;awaySpread=as;method="fallback fairSpread";
         }
       }
@@ -106,8 +111,8 @@ export default async function handler(req,res){
         home,away,valid,warning,method,bookDetail,
         homeSpread:valid?homeSpread:null,
         awaySpread:valid?awaySpread:null,
-        consensusHomeSpread:Number.isFinite(Number(ho.bookSpread))?Number(ho.bookSpread):null,
-        consensusAwaySpread:Number.isFinite(Number(ao.bookSpread))?Number(ao.bookSpread):null
+        consensusHomeSpread:strictNumber(ho.bookSpread),
+        consensusAwaySpread:strictNumber(ao.bookSpread)
       });
     }
 
