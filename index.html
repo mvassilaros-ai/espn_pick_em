@@ -120,7 +120,7 @@ async function refreshOdds(){
       if(!x) continue;
       if(!x.valid){rejected++;continue;}
       g.market_spread=x.homeSpread;
-      g.market_detail=`${x.away} ${sgn(x.awaySpread)} / ${x.home} ${sgn(x.homeSpread)} · ${x.method}`;
+      g.market_detail=`${x.away} ${sgn(x.awaySpread)} / ${x.home} ${sgn(x.homeSpread)} · ${x.method}${x.bookDetail?` · ${x.bookDetail}`:""}`;
       n++;
     }
     localStorage.setItem("ats_pool_games",JSON.stringify(games));

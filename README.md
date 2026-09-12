@@ -22,3 +22,17 @@ The backend explicitly maps each line to the home and away team and validates th
 The UI displays the live line as `TEAM ±spread` and shows both sides in Market Detail, making a sign-flip immediately visible.
 
 Primary market line source: consensus `bookSpread`. Fallbacks are `fairSpread`, then median major-book side-specific spreads.
+
+
+## V3 major-book median fix
+The ATS app no longer trusts SportsGameOdds `bookSpread` consensus as the primary spread source.
+
+It now:
+- reads exact home/away spread markets
+- extracts side-specific spreads from DraftKings, FanDuel, BetMGM, Caesars, ESPN BET and Bet365
+- uses the median major-book spread
+- validates that home/away are mirrored
+- falls back to `fairSpread` only if fewer than two major-book observations are available
+- returns per-book detail for auditing
+
+This directly addresses the observed MIA/LV sign inversion.
