@@ -1,62 +1,479 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NFL ATS Pool Optimizer</title>
+<title>NFL Survivor Planner</title>
 <style>
-:root{--bg:#0a1020;--panel:#121a2e;--text:#eef3ff;--muted:#9eabc7;--border:#2b385a;--accent:#64b5ff;--good:#65d6a6;--warn:#ffd166}
-*{box-sizing:border-box}body{margin:0;background:#0a1020;color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
-.wrap{max-width:1450px;margin:auto;padding:22px 16px 48px}h1{margin:0;font-size:30px}.sub,.tiny{color:var(--muted);font-size:12px;line-height:1.45}
-.grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:15px}.k{font-size:11px;color:var(--muted);text-transform:uppercase}.v{font-size:24px;font-weight:800;margin-top:3px}.big{font-size:18px;font-weight:750}
-.row{display:flex;align-items:center;gap:10px}.spread{justify-content:space-between}.pill{font-size:12px;padding:5px 9px;border-radius:999px;background:#1c2a48}.good{color:var(--good)}.warn{color:var(--warn)}
-button,select,input{font:inherit}button{background:#1b2947;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 11px;cursor:pointer}.primary{background:#1769aa}
-select,input[type=number],input[type=text]{width:100%;background:#0d1528;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px}input[type=range]{width:100%;accent-color:var(--accent)}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}th{font-size:11px;color:#b7c3d9}.scroll{overflow:auto}.callout{border-left:4px solid var(--accent);padding-left:10px}
+:root{--bg:#0a1020;--panel:#121a2e;--text:#eef3ff;--muted:#9eabc7;--border:#2b385a;--accent:#64b5ff;--good:#65d6a6;--warn:#ffd166;--bad:#ff7b8a}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#08101d,#0b1020);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+.wrap{max-width:1450px;margin:auto;padding:22px 16px 48px}.title{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+h1{margin:0;font-size:30px}.sub,.tiny{color:var(--muted);font-size:12px;line-height:1.45}.grid{display:grid;gap:14px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:rgba(18,26,46,.96);border:1px solid var(--border);border-radius:14px;padding:15px}.k{font-size:11px;color:var(--muted);text-transform:uppercase}.v{font-size:24px;font-weight:800;margin-top:3px}.big{font-size:18px;font-weight:750}
+.row{display:flex;align-items:center;gap:10px}.spread{justify-content:space-between}.pill{font-size:12px;padding:5px 9px;border-radius:999px;background:#1c2a48}.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+button,select,input,textarea{font:inherit}button{background:#1b2947;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 11px;cursor:pointer}button:hover{background:#24375f}.primary{background:#1769aa}
+select,input[type=number],input[type=text],textarea{width:100%;background:#0d1528;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px}input[type=range]{width:100%;accent-color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}th{font-size:11px;color:#b7c3d9}.scroll{overflow:auto}.sep{height:1px;background:var(--border);margin:13px 0}.tabs{display:flex;gap:5px;flex-wrap:wrap}.tab.active{background:#1769aa}.callout{border-left:4px solid var(--accent);padding-left:10px}.successBanner{display:none;margin-top:12px;padding:12px 14px;border:1px solid var(--good);border-radius:10px;background:rgba(101,214,166,.08);color:var(--text)}
 @media(max-width:950px){.g4,.g3,.g2{grid-template-columns:1fr 1fr}}@media(max-width:620px){.g4,.g3,.g2{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
-<h1>NFL ATS Pool Optimizer</h1>
-<div class="sub">Separate app for a ~40-entry season-long pool where you pick every NFL game against the pool spread.</div>
+<div class="title"><div><h1>NFL Survivor Planner</h1><div class="sub">Verified market ingestion + full-slate assignment optimization · Manual Entry A / season-optimized Entry B</div></div><div class="row"><div class="pill" id="liveStatus">Odds: manual</div><div class="pill" id="modelStatus">Future model: seed</div><div class="pill" id="ownStatus">Ownership: manual</div></div></div>
 
 <div class="grid g4" style="margin-top:16px">
-<div class="card"><div class="k">Pool entries</div><div class="v"><input id="pool" type="number" value="40"></div></div>
-<div class="card"><div class="k">Your rank</div><div class="v"><input id="rank" type="number" value="20" min="1"></div></div>
-<div class="card"><div class="k">Games behind leader</div><div class="v"><input id="behind" type="number" value="0" min="0"></div></div>
-<div class="card"><div class="k">Strategy</div><div class="v" id="modeName">Balanced</div></div>
+<div class="card"><div class="k">Pool size</div><div class="v"><input id="pool" type="number" value="152"></div></div>
+<div class="card"><div class="k">Risk posture</div><div class="v" id="riskName">Balanced</div></div>
+<div class="card"><div class="k">Your Entry A</div><div class="v" id="nextA">—</div></div>
+<div class="card"><div class="k">Optimized Entry B</div><div class="v" id="nextB">—</div></div>
 </div>
 
 <div class="card" style="margin-top:14px">
-<div class="row spread"><div><div class="big">Risk / contrarian posture</div><div class="tiny">Low = maximize expected correct picks. High = selectively increase variance when chasing.</div></div><div id="riskVal" class="pill">40 / 100</div></div>
-<input id="risk" type="range" min="0" max="100" value="40">
+<div class="row spread"><div><div class="big">Risk / leverage</div><div class="tiny">0 = pure survival bias. 100 = more ownership leverage and future-team preservation.</div></div><div id="riskV" class="pill">45 / 100</div></div>
+<input id="risk" type="range" min="0" max="100" value="45">
 </div>
 
 <div class="grid g3" style="margin-top:14px">
-<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Enter pool lines → refresh live spreads → update public pick % if known → optimize.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshOdds" class="primary">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px"></div></div>
-<div class="card"><div class="big">Slate diagnostics</div><div class="grid g2" style="margin-top:10px"><div><div class="tiny">Expected correct</div><div id="expCorrect" class="v">—</div></div><div><div class="tiny">Strong edges</div><div id="strongEdges" class="v">—</div></div><div><div class="tiny">Contrarian picks</div><div id="contraCount" class="v">—</div></div><div><div class="tiny">Key-number edges</div><div id="keyCount" class="v">—</div></div></div></div>
-<div class="card"><div class="big">Strategy read</div><div id="strategyRead" class="callout tiny" style="margin-top:10px">—</div></div>
+<div class="card">
+<div class="big">Pool state</div><div class="grid g2" style="margin-top:10px">
+<div><div class="tiny">Current week</div><select id="currentWeek"></select></div>
+<div><div class="tiny">Your Entry A pick</div><select id="manualA"></select></div>
+</div>
+<div class="tiny" style="margin-top:8px"><b>Workflow:</b> you and your partner choose Entry A. The model optimizes Entry B and the remaining two-entry season path around that choice.</div>
+<div class="sep"></div><div class="grid g2"><div><div class="tiny">Entry A used</div><input id="usedA" type="text" placeholder="LAC, PHI"></div><div><div class="tiny">Entry B used</div><input id="usedB" type="text" placeholder="JAX, BAL"></div></div>
+<div class="row" style="margin-top:12px"><button class="primary" id="opt">Optimize</button><button id="reset">Reset</button></div>
+</div>
+
+<div class="card">
+<div class="big">Week 1 portfolio</div><div class="grid g2" style="margin-top:12px">
+<div><div class="tiny">At least one survives</div><div class="v" id="one">—</div></div>
+<div><div class="tiny">Both survive</div><div class="v" id="both">—</div></div>
+<div><div class="tiny">A path survival*</div><div class="v" id="survA">—</div></div>
+<div><div class="tiny">B path survival*</div><div class="v" id="survB">—</div></div></div>
+<div class="tiny" style="margin-top:9px">*Planning metric using entered probabilities.</div>
+</div>
+
+<div class="card">
+<div class="big">Data refresh</div>
+<div class="tiny" style="margin-top:8px">Future schedule/model: nflverse schedule + market-implied team strength. Posted sportsbook moneylines overwrite modeled probabilities when available.</div>
+<div class="row" style="margin-top:12px;flex-wrap:wrap">
+<button id="refreshAll" class="primary">Refresh Everything + Optimize</button>
+<button id="refreshFuture">Refresh Full Season Model</button>
+<button id="refreshOdds">Refresh Live Odds</button>
+<button id="refreshOwnership">Refresh Ownership</button>
+</div>
+<div id="allMsg" class="tiny" style="margin-top:8px"></div>
+<div id="refreshBanner" class="successBanner"></div>
+<div id="futureMsg" class="tiny" style="margin-top:8px"></div>
+<div id="allSummary" class="tiny callout" style="margin-top:10px;display:none"></div>
+
+<div id="oddsMsg" class="tiny" style="margin-top:4px"></div>
+<div id="ownMsg" class="tiny" style="margin-top:4px"></div>
+<div class="sep"></div>
+<div class="tiny"><b>MODEL</b> = team-strength projection. <b>LIVE</b> = sportsbook fair-moneyline probability. Future Value is calculated automatically from the remaining schedule and weekly scarcity.</div>
+</div>
 </div>
 
 <div class="card" style="margin-top:14px">
-<div class="row spread"><div><div class="big">Game board</div><div class="tiny">Pool spread is from HOME-team perspective. Negative = home favorite.</div></div><div class="pill">All games editable</div></div>
-<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Away</th><th>Home</th><th>Pool line</th><th>Live line</th><th>Line edge</th><th>Total</th><th>Public on favorite %</th><th>Fav cover %</th><th>Dog cover %</th><th>Key #</th><th>Pick</th><th>Confidence</th><th>Score</th></tr></thead><tbody id="board"></tbody></table></div>
+<div class="row spread"><div><div class="big">Optimized 18-week map</div><div class="tiny">You choose the current-week Entry A team. The model then optimizes Entry B and both remaining season paths around that fixed decision. Each entry can use a team only once.</div></div><div id="status" class="pill">Ready</div></div>
+<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Week</th><th>Entry A</th><th>A Win%</th><th>Entry B</th><th>B Win%</th><th>Same?</th><th>Read</th></tr></thead><tbody id="pathBody"></tbody></table></div>
+</div>
+
+<div class="card" style="margin-top:14px">
+<div class="row spread"><div><div class="big">Weekly board</div><div class="tiny">The board includes the entire scheduled slate. MODEL probabilities are replaced by LIVE market probabilities wherever posted.</div></div><div id="tabs" class="tabs"></div></div>
+<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Team</th><th>Opp</th><th>Win %</th><th>Source</th><th>Market detail</th><th>Open %</th><th>Move</th><th>Public Ownership %</th><th>Future</th><th>Use score</th></tr></thead><tbody id="board"></tbody></table></div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
-<div class="card"><div class="big">Recommended picks — strongest first</div><div class="scroll"><table><thead><tr><th>#</th><th>Game</th><th>Pick</th><th>Pool</th><th>Live</th><th>Cover %</th><th>Public</th><th>Edge</th><th>Reason</th></tr></thead><tbody id="ranked"></tbody></table></div></div>
-<div class="card"><div class="big">How the model thinks</div><div class="tiny" style="margin-top:8px"><b>Market edge:</b> stale pool line vs current market is the biggest input.<br><br><b>Key numbers:</b> crossing 3 or 7 matters more than an ordinary point move.<br><br><b>Public leverage:</b> lower-owned sides gain value mainly when you are chasing and expected cover probabilities are close.<br><br><b>Accuracy:</b> remains the dominant objective.</div></div>
+<div class="card"><div class="big">Entry A fixed — optimize Entry B</div><div class="tiny">Every Entry B candidate is forced this week and the remaining season is solved as an assignment problem. “Cost vs best” is the modeled full-season opportunity cost.</div><div class="scroll"><table><thead><tr><th>#</th><th>Pair</th><th>≥1 survives</th><th>Both</th><th>Safety</th><th>Leverage</th><th>Future gain</th><th>This-week score</th><th>18-week score</th><th>Cost vs best</th><th>Recommended</th></tr></thead><tbody id="pairs"></tbody></table></div></div>
+<div class="card"><div class="big">Decision read</div><div id="why" class="callout tiny" style="margin-top:10px">—</div><div class="sep"></div><div id="weights" class="tiny"></div></div>
 </div>
 
-<div class="card" style="margin-top:14px"><div class="big">Tie-break helper</div><div class="grid g3" style="margin-top:10px"><div><div class="tiny">Market total</div><input id="tbTotal" type="number" step=".5" value="45.5"></div><div><div class="tiny">Lean adjustment</div><input id="tbAdj" type="number" step=".5" value="0"></div><div><div class="tiny">Suggested total points</div><div id="tbPick" class="v">45</div></div></div></div>
+<div class="card" style="margin-top:14px">
+<div class="row spread"><div><div class="big">Week 1 Monte Carlo</div><div class="tiny">Simulates pool survival using entered market probabilities and ownership.</div></div><div class="row"><select id="sims" style="width:130px"><option>10000</option><option selected>50000</option><option>100000</option></select><button id="mc" class="primary">Run Monte Carlo</button></div></div>
+<div class="grid g4" style="margin-top:12px"><div><div class="tiny">Selected pair</div><div class="v" id="mcPair">—</div></div><div><div class="tiny">Avg surviving field*</div><div class="v" id="field">—</div></div><div><div class="tiny">Relative field equity*</div><div class="v" id="equity">—</div></div><div><div class="tiny">Simulation status</div><div class="v" id="mcStatus">Manual</div></div></div>
+<div class="tiny" style="margin-top:9px">*Monte Carlo is manual only. It will run only when you click <b>Run Monte Carlo</b>. Week 1 relative decision metrics, not a claim of ultimate season win probability.</div>
+</div>
 </div>
 
 <script>
-const SEED=[{"away": "NE", "home": "SEA", "pool_spread": -3.5, "market_spread": -4.0, "total": 45.5, "public_fav": 58}, {"away": "SF", "home": "LA", "pool_spread": 1.5, "market_spread": 1.0, "total": 47.0, "public_fav": 52}, {"away": "CHI", "home": "CAR", "pool_spread": 2.5, "market_spread": 2.0, "total": 43.5, "public_fav": 46}, {"away": "BAL", "home": "IND", "pool_spread": 4.5, "market_spread": 5.5, "total": 46.5, "public_fav": 67}, {"away": "ATL", "home": "PIT", "pool_spread": -3.5, "market_spread": -3.5, "total": 44.0, "public_fav": 60}, {"away": "CLE", "home": "JAX", "pool_spread": -6.5, "market_spread": -7.0, "total": 42.5, "public_fav": 72}, {"away": "TB", "home": "CIN", "pool_spread": -2.5, "market_spread": -3.0, "total": 48.5, "public_fav": 61}, {"away": "NYJ", "home": "TEN", "pool_spread": 1.5, "market_spread": 1.0, "total": 41.5, "public_fav": 48}, {"away": "NO", "home": "DET", "pool_spread": -7.5, "market_spread": -8.0, "total": 50.0, "public_fav": 76}, {"away": "BUF", "home": "HOU", "pool_spread": 2.5, "market_spread": 2.0, "total": 49.0, "public_fav": 56}, {"away": "ARI", "home": "LAC", "pool_spread": -8.5, "market_spread": -9.0, "total": 46.0, "public_fav": 79}, {"away": "GB", "home": "MIN", "pool_spread": 1.5, "market_spread": 2.0, "total": 47.5, "public_fav": 54}, {"away": "MIA", "home": "LV", "pool_spread": 3.5, "market_spread": 3.0, "total": 44.5, "public_fav": 44}, {"away": "WAS", "home": "PHI", "pool_spread": -5.5, "market_spread": -6.0, "total": 48.0, "public_fav": 70}, {"away": "DAL", "home": "NYG", "pool_spread": 4.5, "market_spread": 4.0, "total": 45.0, "public_fav": 57}, {"away": "DEN", "home": "KC", "pool_spread": -7.5, "market_spread": -8.0, "total": 44.0, "public_fav": 81}];
-let games=JSON.parse(localStorage.getItem("ats_pool_games")||"null")||structuredClone(SEED);
-const $=x=>document.getElementById(x);
-function normcdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2);let p=1-d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>=0?p:1-p}
-function keyWeight(pool,market){const keys=[3,7,2,6,10,14];const a=Math.abs(pool),b=Math.abs(market),lo=Math.min(a,b),hi=Math.max(a,b);let score=0;for(const k of keys)if(lo<k&&hi>=k)score+=(k===3?1.8:k===7?1.4:.6);return score}
-function metrics(g){const sigma=13.86,marketMean=-g.market_spread,threshold=-g.pool_spread;let homeCover=1-normcdf((threshold-marketMean)/sigma);homeCover=Math.max(.02,Math.min(.98,homeCover));const awayCover=1-homeCover,homeFav=g.pool_spread<0,favCover=homeFav?homeCover:awayCover,dogCover=1-favCover;return{homeCover,awayCover,favCover,dogCover,lineEdge:Math.abs(g.market_spread-g.pool_spread),key:keyWeight(g.pool_spread,g.market_spread),homeFav}}
-function strategy(){const r=+$("risk").value/100,behind=+$("behind").value,rank=+$("rank").value,pool=+$("pool").value;const chase=Math.min(1,r*.65+Math.min(behind/6,.35)+Math.max(0,(rank/pool)-.5)*.25);return{accuracy:.88-.18*chase,leverage:.05+.22*chase,key:.07+.04*chase,chase}}
-function pickGame(g){const m=metrics(g),s=strategy(),favPublic=Math.max(.01,Math.min(.99,g.public_fav/100)),dogPublic=1-favPublic;const favScore=s.accuracy*m.favCover+s.leverage*(1-favPublic)+s.key*(m.key/3),dogScore=s.accuracy*m.dogCover+s.leverage*(1-dogPublic)+s.key*(m.key/3),pickFav=favScore>=dogScore,cover=pickFav?m.favCover:m.dogCover,publicPct=pickFav?favPublic:dogPublic,homePick=pickFav?m.homeFav:!m.homeFav,team=homePick?g.home:g.away,score=Math.max(favScore,dogScore);let conf=cover>=.58?"A":cover>=.55?"B+":cover>=.53?"B":cover>=.515?"C+":"C";let reason=[];if(m.lineEdge>=1.5)reason.push("stale line");if(m.key>=1.4)reason.push("key-number move");if(publicPct<.4&&cover>.50)reason.push("leverage");if(!reason.length)reason.push("market lean");return{...m,pickFav,team,cover,publicPct,score,conf,reason:reason.join(", ")}}
-function render(){let tb=$("board");tb.innerHTML="";let expected=0,strong=0,contra=0,keys=0,ranked=[];games.forEach((g,i)=>{const x=pickGame(g);expected+=x.cover;if(x.cover>=.55)strong++;if(x.publicPct<.4)contra++;if(x.key>=1.4)keys++;ranked.push({g,x});tb.insertAdjacentHTML("beforeend",`<tr><td>${g.away}</td><td>${g.home}</td><td><input type="number" step=".5" data-i="${i}" data-k="pool_spread" value="${g.pool_spread}"></td><td><input type="number" step=".5" data-i="${i}" data-k="market_spread" value="${g.market_spread}"></td><td class="${x.lineEdge>=1.5?'good':''}">${x.lineEdge.toFixed(1)}</td><td><input type="number" step=".5" data-i="${i}" data-k="total" value="${g.total}"></td><td><input type="number" step="1" data-i="${i}" data-k="public_fav" value="${g.public_fav}"></td><td>${(x.favCover*100).toFixed(1)}%</td><td>${(x.dogCover*100).toFixed(1)}%</td><td>${x.key.toFixed(1)}</td><td><b>${x.team}</b></td><td>${x.conf}</td><td>${(x.score*100).toFixed(1)}</td></tr>`)});tb.querySelectorAll("input").forEach(inp=>inp.onchange=e=>{games[+e.target.dataset.i][e.target.dataset.k]=Number(e.target.value);localStorage.setItem("ats_pool_games",JSON.stringify(games));render()});$("expCorrect").textContent=expected.toFixed(1);$("strongEdges").textContent=strong;$("contraCount").textContent=contra;$("keyCount").textContent=keys;const st=strategy();$("modeName").textContent=st.chase<.3?"Accuracy":st.chase<.62?"Balanced":"Chasing";$("strategyRead").textContent=st.chase<.3?"Prioritize expected correctness; use contrarianism only as a tiebreaker.":st.chase<.62?"Market edge dominates, with moderate leverage on close decisions.":"Selective variance mode: more willing to oppose concentrated public picks when the probability cost is small.";ranked.sort((a,b)=>b.x.score-a.x.score);$("ranked").innerHTML=ranked.map((o,i)=>`<tr><td>${i+1}</td><td>${o.g.away} @ ${o.g.home}</td><td><b>${o.x.team}</b></td><td>${o.g.pool_spread>0?"+":""}${o.g.pool_spread}</td><td>${o.g.market_spread>0?"+":""}${o.g.market_spread}</td><td>${(o.x.cover*100).toFixed(1)}%</td><td>${(o.x.publicPct*100).toFixed(0)}%</td><td>${o.x.lineEdge.toFixed(1)}</td><td class="tiny">${o.x.reason}</td></tr>`).join("");tieBreaker()}
-function tieBreaker(){const x=+$("tbTotal").value + +$("tbAdj").value;$("tbPick").textContent=Math.max(0,Math.floor(x))}
-async function refreshOdds(){$("oddsMsg").textContent="Fetching live NFL spreads…";try{const r=await fetch("/api/odds");if(!r.ok)throw new Error(await r.text());const obj=await r.json(),events=obj.data||obj.events||[];let n=0;function norm(t){const m={LAR:"LA",WSH:"WAS",JAC:"JAX",OAK:"LV"};t=String(t||"").toUpperCase();return m[t]||t}function ab(side){return norm(side?.abbreviation||side?.names?.short||side?.name||side?.teamID||"")}for(const g of games){for(const ev of events){const h=ab(ev.teams?.home),a=ab(ev.teams?.away);if(h!==g.home||a!==g.away)continue;const vals=[];for(const k of Object.keys(ev.odds||{})){const o=ev.odds[k]||{};if(o.periodID&&o.periodID!=="game")continue;if(o.betTypeID&&o.betTypeID!=="sp")continue;if((o.sideID||"").toLowerCase()!=="home")continue;const v=Number(o.bookSpread??o.fairSpread??o.spread??o.line);if(Number.isFinite(v))vals.push(v)}if(vals.length){g.market_spread=vals.reduce((x,y)=>x+y,0)/vals.length;n++}break}}localStorage.setItem("ats_pool_games",JSON.stringify(games));$("oddsMsg").textContent=`Updated ${n} game spreads.`;render()}catch(e){$("oddsMsg").textContent="Live spread refresh unavailable; manual values remain.";console.error(e)}}
-$("risk").oninput=()=>{$("riskVal").textContent=$("risk").value+" / 100";render()};$("pool").onchange=render;$("rank").onchange=render;$("behind").onchange=render;$("opt").onclick=render;$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{games=structuredClone(SEED);localStorage.removeItem("ats_pool_games");render()};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;$("riskVal").textContent=$("risk").value+" / 100";render();
+const SEED=[{"week": 1, "team": "LAC", "opp": "ARI", "p": 83.0, "own": 27.6, "future": 78, "openp": 81.0, "unc": 12}, {"week": 1, "team": "JAX", "opp": "CLE", "p": 78.5, "own": 23.4, "future": 54, "openp": 77.0, "unc": 12}, {"week": 1, "team": "DET", "opp": "NO", "p": 75.0, "own": 13.4, "future": 82, "openp": 74.0, "unc": 12}, {"week": 1, "team": "PHI", "opp": "WAS", "p": 68.0, "own": 3.3, "future": 88, "openp": 67.0, "unc": 12}, {"week": 1, "team": "BAL", "opp": "IND", "p": 67.0, "own": 1.6, "future": 91, "openp": 66.0, "unc": 12}, {"week": 1, "team": "PIT", "opp": "ATL", "p": 64.0, "own": 4.7, "future": 40, "openp": 61.0, "unc": 12}, {"week": 1, "team": "LV", "opp": "MIA", "p": 63.0, "own": 5.3, "future": 30, "openp": 62.0, "unc": 12}, {"week": 1, "team": "CIN", "opp": "TB", "p": 61.0, "own": 4.0, "future": 72, "openp": 60.0, "unc": 12}, {"week": 2, "team": "KC", "opp": "IND", "p": 82, "own": 10, "future": 50, "openp": 82, "unc": 15}, {"week": 2, "team": "BAL", "opp": "NO", "p": 80, "own": 10, "future": 50, "openp": 80, "unc": 15}, {"week": 2, "team": "LAC", "opp": "LV", "p": 77, "own": 10, "future": 50, "openp": 77, "unc": 15}, {"week": 2, "team": "PHI", "opp": "TEN", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 2, "team": "SF", "opp": "MIA", "p": 74, "own": 10, "future": 50, "openp": 74, "unc": 15}, {"week": 2, "team": "ATL", "opp": "CAR", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 3, "team": "DET", "opp": "NYJ", "p": 84, "own": 10, "future": 50, "openp": 84, "unc": 15}, {"week": 3, "team": "SF", "opp": "ARI", "p": 81, "own": 10, "future": 50, "openp": 81, "unc": 15}, {"week": 3, "team": "BUF", "opp": "LAC", "p": 72, "own": 10, "future": 50, "openp": 72, "unc": 15}, {"week": 3, "team": "JAX", "opp": "NE", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 3, "team": "CLE", "opp": "CAR", "p": 68, "own": 10, "future": 50, "openp": 68, "unc": 15}, {"week": 3, "team": "NYG", "opp": "TEN", "p": 64, "own": 10, "future": 50, "openp": 64, "unc": 15}, {"week": 4, "team": "BAL", "opp": "TEN", "p": 86, "own": 10, "future": 50, "openp": 86, "unc": 15}, {"week": 4, "team": "DET", "opp": "CAR", "p": 82, "own": 10, "future": 50, "openp": 82, "unc": 15}, {"week": 4, "team": "BUF", "opp": "NE", "p": 81, "own": 10, "future": 50, "openp": 81, "unc": 15}, {"week": 4, "team": "SF", "opp": "DEN", "p": 77, "own": 10, "future": 50, "openp": 77, "unc": 15}, {"week": 4, "team": "KC", "opp": "LV", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 4, "team": "MIN", "opp": "MIA", "p": 69, "own": 10, "future": 50, "openp": 69, "unc": 15}, {"week": 5, "team": "PHI", "opp": "CAR", "p": 85, "own": 10, "future": 50, "openp": 85, "unc": 15}, {"week": 5, "team": "BUF", "opp": "LV", "p": 83, "own": 10, "future": 50, "openp": 83, "unc": 15}, {"week": 5, "team": "SF", "opp": "WAS", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 5, "team": "LA", "opp": "ARI", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 5, "team": "IND", "opp": "TEN", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 5, "team": "ATL", "opp": "CHI", "p": 67, "own": 10, "future": 50, "openp": 67, "unc": 15}, {"week": 6, "team": "GB", "opp": "CAR", "p": 84, "own": 10, "future": 50, "openp": 84, "unc": 15}, {"week": 6, "team": "BAL", "opp": "JAX", "p": 81, "own": 10, "future": 50, "openp": 81, "unc": 15}, {"week": 6, "team": "KC", "opp": "NYJ", "p": 80, "own": 10, "future": 50, "openp": 80, "unc": 15}, {"week": 6, "team": "PHI", "opp": "NYG", "p": 79, "own": 10, "future": 50, "openp": 79, "unc": 15}, {"week": 6, "team": "SF", "opp": "LV", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 6, "team": "DEN", "opp": "CAR", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 7, "team": "KC", "opp": "ARI", "p": 83, "own": 10, "future": 50, "openp": 83, "unc": 15}, {"week": 7, "team": "DAL", "opp": "TEN", "p": 79, "own": 10, "future": 50, "openp": 79, "unc": 15}, {"week": 7, "team": "LAC", "opp": "NYJ", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 7, "team": "DEN", "opp": "LV", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 7, "team": "SF", "opp": "MIN", "p": 72, "own": 10, "future": 50, "openp": 72, "unc": 15}, {"week": 7, "team": "DET", "opp": "TB", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 8, "team": "LAC", "opp": "NE", "p": 82, "own": 10, "future": 50, "openp": 82, "unc": 15}, {"week": 8, "team": "JAX", "opp": "TEN", "p": 79, "own": 10, "future": 50, "openp": 79, "unc": 15}, {"week": 8, "team": "TB", "opp": "CAR", "p": 77, "own": 10, "future": 50, "openp": 77, "unc": 15}, {"week": 8, "team": "SF", "opp": "SEA", "p": 71, "own": 10, "future": 50, "openp": 71, "unc": 15}, {"week": 8, "team": "CIN", "opp": "NO", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 8, "team": "MIA", "opp": "NYJ", "p": 69, "own": 10, "future": 50, "openp": 69, "unc": 15}, {"week": 9, "team": "SF", "opp": "NYG", "p": 82, "own": 10, "future": 50, "openp": 82, "unc": 15}, {"week": 9, "team": "DET", "opp": "ATL", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 9, "team": "GB", "opp": "NO", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 9, "team": "PHI", "opp": "ARI", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 9, "team": "BUF", "opp": "NE", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 9, "team": "MIN", "opp": "CAR", "p": 73, "own": 10, "future": 50, "openp": 73, "unc": 15}, {"week": 10, "team": "PHI", "opp": "IND", "p": 82, "own": 10, "future": 50, "openp": 82, "unc": 15}, {"week": 10, "team": "DET", "opp": "TEN", "p": 81, "own": 10, "future": 50, "openp": 81, "unc": 15}, {"week": 10, "team": "SEA", "opp": "NYG", "p": 77, "own": 10, "future": 50, "openp": 77, "unc": 15}, {"week": 10, "team": "BAL", "opp": "TB", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 10, "team": "MIA", "opp": "CHI", "p": 71, "own": 10, "future": 50, "openp": 71, "unc": 15}, {"week": 10, "team": "LAC", "opp": "LV", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 11, "team": "BAL", "opp": "CLE", "p": 84, "own": 10, "future": 50, "openp": 84, "unc": 15}, {"week": 11, "team": "DET", "opp": "NYG", "p": 83, "own": 10, "future": 50, "openp": 83, "unc": 15}, {"week": 11, "team": "PIT", "opp": "CAR", "p": 80, "own": 10, "future": 50, "openp": 80, "unc": 15}, {"week": 11, "team": "MIN", "opp": "WAS", "p": 72, "own": 10, "future": 50, "openp": 72, "unc": 15}, {"week": 11, "team": "KC", "opp": "SF", "p": 69, "own": 10, "future": 50, "openp": 69, "unc": 15}, {"week": 11, "team": "MIA", "opp": "LAC", "p": 66, "own": 10, "future": 50, "openp": 66, "unc": 15}, {"week": 12, "team": "DAL", "opp": "NYG", "p": 81, "own": 10, "future": 50, "openp": 81, "unc": 15}, {"week": 12, "team": "BUF", "opp": "MIA", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 12, "team": "JAX", "opp": "TEN", "p": 77, "own": 10, "future": 50, "openp": 77, "unc": 15}, {"week": 12, "team": "SF", "opp": "SEA", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 12, "team": "TB", "opp": "CAR", "p": 74, "own": 10, "future": 50, "openp": 74, "unc": 15}, {"week": 12, "team": "MIN", "opp": "ATL", "p": 71, "own": 10, "future": 50, "openp": 71, "unc": 15}, {"week": 13, "team": "PHI", "opp": "HOU", "p": 80, "own": 10, "future": 50, "openp": 80, "unc": 15}, {"week": 13, "team": "BUF", "opp": "DEN", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 13, "team": "GB", "opp": "CHI", "p": 74, "own": 10, "future": 50, "openp": 74, "unc": 15}, {"week": 13, "team": "BAL", "opp": "CIN", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 13, "team": "SEA", "opp": "LA", "p": 68, "own": 10, "future": 50, "openp": 68, "unc": 15}, {"week": 13, "team": "PIT", "opp": "TEN", "p": 67, "own": 10, "future": 50, "openp": 67, "unc": 15}, {"week": 14, "team": "DET", "opp": "CHI", "p": 77, "own": 10, "future": 50, "openp": 77, "unc": 15}, {"week": 14, "team": "DAL", "opp": "NYG", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 14, "team": "SEA", "opp": "CAR", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 14, "team": "BUF", "opp": "MIA", "p": 73, "own": 10, "future": 50, "openp": 73, "unc": 15}, {"week": 14, "team": "GB", "opp": "HOU", "p": 72, "own": 10, "future": 50, "openp": 72, "unc": 15}, {"week": 14, "team": "MIN", "opp": "NYJ", "p": 71, "own": 10, "future": 50, "openp": 71, "unc": 15}, {"week": 15, "team": "BAL", "opp": "CLE", "p": 82, "own": 10, "future": 50, "openp": 82, "unc": 15}, {"week": 15, "team": "PIT", "opp": "CAR", "p": 79, "own": 10, "future": 50, "openp": 79, "unc": 15}, {"week": 15, "team": "DET", "opp": "NYG", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 15, "team": "DAL", "opp": "JAX", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 15, "team": "KC", "opp": "SF", "p": 68, "own": 10, "future": 50, "openp": 68, "unc": 15}, {"week": 15, "team": "MIN", "opp": "WAS", "p": 67, "own": 10, "future": 50, "openp": 67, "unc": 15}, {"week": 16, "team": "PHI", "opp": "HOU", "p": 79, "own": 10, "future": 50, "openp": 79, "unc": 15}, {"week": 16, "team": "BUF", "opp": "DEN", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 16, "team": "GB", "opp": "CHI", "p": 74, "own": 10, "future": 50, "openp": 74, "unc": 15}, {"week": 16, "team": "DET", "opp": "CHI", "p": 72, "own": 10, "future": 50, "openp": 72, "unc": 15}, {"week": 16, "team": "SEA", "opp": "CAR", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 16, "team": "PIT", "opp": "TEN", "p": 69, "own": 10, "future": 50, "openp": 69, "unc": 15}, {"week": 17, "team": "DET", "opp": "NYG", "p": 81, "own": 10, "future": 50, "openp": 81, "unc": 15}, {"week": 17, "team": "BAL", "opp": "CLE", "p": 80, "own": 10, "future": 50, "openp": 80, "unc": 15}, {"week": 17, "team": "PIT", "opp": "CAR", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 17, "team": "DAL", "opp": "NYG", "p": 75, "own": 10, "future": 50, "openp": 75, "unc": 15}, {"week": 17, "team": "MIN", "opp": "NYJ", "p": 73, "own": 10, "future": 50, "openp": 73, "unc": 15}, {"week": 17, "team": "SEA", "opp": "CAR", "p": 71, "own": 10, "future": 50, "openp": 71, "unc": 15}, {"week": 18, "team": "DAL", "opp": "NYG", "p": 78, "own": 10, "future": 50, "openp": 78, "unc": 15}, {"week": 18, "team": "SEA", "opp": "CAR", "p": 76, "own": 10, "future": 50, "openp": 76, "unc": 15}, {"week": 18, "team": "GB", "opp": "HOU", "p": 72, "own": 10, "future": 50, "openp": 72, "unc": 15}, {"week": 18, "team": "DET", "opp": "CHI", "p": 70, "own": 10, "future": 50, "openp": 70, "unc": 15}, {"week": 18, "team": "PIT", "opp": "TEN", "p": 69, "own": 10, "future": 50, "openp": 69, "unc": 15}, {"week": 18, "team": "MIN", "opp": "NYJ", "p": 68, "own": 10, "future": 50, "openp": 68, "unc": 15}];
+let rows=JSON.parse(localStorage.getItem("survivor_final_rows")||"null")||structuredClone(SEED),activeWeek=1,lastA=[],lastB=[];
+const $=x=>document.getElementById(x),pct=x=>(x*100).toFixed(1)+"%";
+let suspendOptimize=false;
+function W(){let r=+$("risk").value/100;return{s:.76-.30*r,l:.05+.27*r,f:.15+.05*r,d:.02+.09*r}}
+
+function wr(w){return rows.filter(r=>r.week===w)}
+function fillManualA(){
+  const s=$("manualA");
+  if(!s) return;
+  const old=s.value;
+  s.innerHTML="";
+  const uA=used("usedA");
+  wr(+$("currentWeek").value)
+    .filter(r=>!uA.has(r.team))
+    .sort((a,b)=>b.p-a.p)
+    .forEach(r=>s.add(new Option(`${r.team} (${r.p.toFixed(1)}%)`,r.team)));
+  if([...s.options].some(o=>o.value===old)) s.value=old;
+}
+
+function normTeam(t){
+  const x=String(t||"").toUpperCase();
+  const map={LAR:"LA",WSH:"WAS",OAK:"LV",JAC:"JAX"};
+  return map[x]||x;
+}
+function recalcFutureValues(){
+  const weekStats={};
+  for(let w=1;w<=18;w++){
+    const vals=wr(w).map(r=>r.p/100).sort((a,b)=>b-a);
+    weekStats[w]={best:vals[0]||.5,second:vals[1]||.5,third:vals[2]||.5};
+  }
+  for(const row of rows){
+    const vals=[];
+    for(const fr of rows){
+      if(fr.team!==row.team || fr.week<=row.week) continue;
+      const p=fr.p/100;
+      if(p<.58) continue;
+      const st=weekStats[fr.week]||{second:.65,third:.60};
+      const scarcity=1+Math.max(0,.74-st.second)*2.8+Math.max(0,.68-st.third)*1.2;
+      const quality=Math.max(0,Math.min(1,(p-.58)/.30));
+      vals.push(quality*scarcity*100);
+    }
+    vals.sort((a,b)=>b-a);
+    row._futureRaw=(vals[0]||0)+.35*(vals[1]||0)+.15*(vals[2]||0);
+  }
+  const maxRaw=Math.max(1,...rows.map(r=>r._futureRaw||0));
+  for(const row of rows) row.future=Math.round(100*(row._futureRaw||0)/maxRaw);
+}
+
+function used(id){return new Set($(id).value.split(",").map(x=>x.trim().toUpperCase()).filter(Boolean))}
+function tscore(r){let w=W(),p=r.p/100,o=r.own/100,use=1-r.future/100;return 100*(w.s*p+w.l*p*(1-o)+w.f*use)}
+function pair(a,b){let pa=a.p/100,pb=b.p/100,same=a.team===b.team,w=W(),one=same?pa:1-(1-pa)*(1-pb),both=same?pa:pa*pb,bonus=same?0:w.d*100*Math.min(pa,pb),gap=Math.max(0,Math.abs(pa-pb)-.10)*20;return{a,b,one,both,same,score:(tscore(a)+tscore(b))/2+bonus-gap}}
+function forcePair(){let v=$("force").value;if(!v)return[null,null];let a=v.split("+").map(x=>x.trim());return[a[0],a[1]]}
+
+
+
+function basePickValue(r){
+  const p=Math.max(.01,r.p/100);
+  return Math.log(p)*72 + tscore(r);
+}
+function solveAssignment(start,usedSet,fixedCurrentTeam=null,collisionPath=null){
+  const weeks=[]; for(let w=start;w<=18;w++) weeks.push(w);
+  const teamSet=new Set();
+  for(const w of weeks) for(const r of wr(w)) if(!usedSet.has(r.team)) teamSet.add(r.team);
+  const teams=[...teamSet];
+  const WN=weeks.length,TN=teams.length,S=0,weekBase=1,teamBase=1+WN,T=1+WN+TN,N=T+1;
+  const g=Array.from({length:N},()=>[]);
+  function addEdge(u,v,cap,cost,meta=null){
+    const a={to:v,rev:g[v].length,cap,cost,meta};
+    const b={to:u,rev:g[u].length,cap:0,cost:-cost,meta:null};
+    g[u].push(a);g[v].push(b);
+  }
+  for(let i=0;i<WN;i++) addEdge(S,weekBase+i,1,0);
+  for(let j=0;j<TN;j++) addEdge(teamBase+j,T,1,0);
+  for(let i=0;i<WN;i++){
+    const w=weeks[i];
+    for(let j=0;j<TN;j++){
+      const team=teams[j],r=wr(w).find(x=>x.team===team);
+      if(!r) continue;
+      if(w===start&&fixedCurrentTeam&&team!==fixedCurrentTeam) continue;
+      let val=basePickValue(r);
+      if(collisionPath&&collisionPath[i]&&collisionPath[i].team===team) val-=12;
+      addEdge(weekBase+i,teamBase+j,1,-val,{row:r});
+    }
+  }
+  let flow=0,cost=0;
+  while(flow<WN){
+    const dist=Array(N).fill(Infinity),pv=Array(N).fill(-1),pe=Array(N).fill(-1),inq=Array(N).fill(false);
+    dist[S]=0; const q=[S]; inq[S]=true;
+    while(q.length){
+      const u=q.shift();inq[u]=false;
+      for(let ei=0;ei<g[u].length;ei++){
+        const e=g[u][ei]; if(e.cap<=0) continue;
+        const nd=dist[u]+e.cost;
+        if(nd<dist[e.to]-1e-9){
+          dist[e.to]=nd;pv[e.to]=u;pe[e.to]=ei;
+          if(!inq[e.to]){inq[e.to]=true;q.push(e.to);}
+        }
+      }
+    }
+    if(!Number.isFinite(dist[T])) break;
+    let v=T;
+    while(v!==S){
+      const u=pv[v],ei=pe[v];
+      g[u][ei].cap-=1;g[v][g[u][ei].rev].cap+=1;v=u;
+    }
+    flow++;cost+=dist[T];
+  }
+  if(flow<WN) return null;
+  const path=[];
+  for(let i=0;i<WN;i++){
+    let chosen=null;
+    for(const e of g[weekBase+i]) if(e.meta&&e.cap===0){chosen=e.meta.row;break;}
+    path.push(chosen);
+  }
+  return {score:-cost,path};
+}
+function optimize(){
+  const start=+$("currentWeek").value;
+  fillManualA();
+  const aTeam=$("manualA")?.value||null;
+  const usedASet=used("usedA"),usedBSet=used("usedB");
+  const A=solveAssignment(start,usedASet,aTeam,null);
+  if(!A){$("status").textContent="No valid Entry A season path";return;}
+  const candidates=[];
+  for(const b of wr(start).filter(r=>!usedBSet.has(r.team))){
+    const B=solveAssignment(start,usedBSet,b.team,A.path);
+    if(!B) continue;
+    const m=pair(A.path[0],b);
+    candidates.push({b,B,m,portfolioScore:A.score+B.score});
+  }
+  candidates.sort((x,y)=>y.portfolioScore-x.portfolioScore);
+  const best=candidates[0];
+  if(!best){$("status").textContent="No valid Entry B path";return;}
+  lastA=A.path;lastB=best.B.path;
+  window.__entryBCandidates=candidates;
+  window.__entryAScore=A.score;
+  renderPath(lastA,lastB,start);
+  if(lastA[0]) $("nextA").textContent=lastA[0].team;
+  if(lastB[0]) $("nextB").textContent=lastB[0].team;
+  const a=lastA[0],b=lastB[0],m=pair(a,b);
+  $("one").textContent=pct(m.one);$("both").textContent=pct(m.both);
+  $("survA").textContent=pct(lastA.reduce((z,r)=>z*r.p/100,1));
+  $("survB").textContent=pct(lastB.reduce((z,r)=>z*r.p/100,1));
+  $("why").innerHTML=`You fixed <b>Entry A = ${a.team}</b>. Every legal Entry B team was tested against the <b>entire remaining schedule</b>; the assignment solver recommends <b>${b.team}</b>.`;
+  $("status").textContent="Entry A fixed · Entry B season-optimized";
+  renderPairs();
+}
+function renderPath(A,B,start){let tb=$("pathBody");tb.innerHTML="";for(let w=start;w<=18;w++){let a=A[w-start],b=B[w-start];tb.insertAdjacentHTML("beforeend",`<tr><td><button class="wk" data-w="${w}">W${w}</button></td><td>${a?.team||"—"}</td><td>${a?a.p.toFixed(1)+"%":"—"}</td><td>${b?.team||"—"}</td><td>${b?b.p.toFixed(1)+"%":"—"}</td><td>${a&&b&&a.team===b.team?"YES":"No"}</td><td class="tiny">${a&&b&&a.team===b.team?"Correlated":"Diversified"}</td></tr>`)}tb.querySelectorAll(".wk").forEach(x=>x.onclick=()=>{activeWeek=+x.dataset.w;renderTabs();renderBoard()})}
+function renderTabs(){let t=$("tabs");t.innerHTML="";for(let w=1;w<=18;w++){let b=document.createElement("button");b.textContent="W"+w;b.className="tab"+(w===activeWeek?" active":"");b.onclick=()=>{activeWeek=w;renderTabs();renderBoard()};t.appendChild(b)}}
+function renderBoard(){
+ let tb=$("board");tb.innerHTML="";
+ wr(activeWeek).sort((a,b)=>b.p-a.p).forEach(r=>{
+   let i=rows.indexOf(r),mv=r.p-r.openp,src=r.source||"MODEL";
+   tb.insertAdjacentHTML("beforeend",`<tr>
+   <td>${r.team}</td><td>${r.opp}</td>
+   <td><input type="number" step=".1" data-i="${i}" data-k="p" value="${r.p}"></td>
+   <td><span class="pill">${src}</span></td>
+   <td class="tiny">${r.marketDetail||"—"}</td>
+   <td><input type="number" step=".1" data-i="${i}" data-k="openp" value="${r.openp}"></td>
+   <td class="${mv>=0?'good':'warn'}">${mv>=0?'+':''}${mv.toFixed(1)}</td>
+   <td><input type="number" step=".1" data-i="${i}" data-k="own" value="${r.own}"></td>
+   <td>${r.future}</td><td>${tscore(r).toFixed(1)}</td></tr>`)
+ });
+ tb.querySelectorAll("input").forEach(x=>x.onchange=e=>{
+   rows[+e.target.dataset.i][e.target.dataset.k]=Number(e.target.value);
+   recalcFutureValues();
+   localStorage.setItem("survivor_final_rows",JSON.stringify(rows));
+   renderBoard();optimize()
+ })
+}
+
+
+function renderPairs(){
+  const arr=window.__entryBCandidates||[];
+  if(!arr.length){$("pairs").innerHTML="";return;}
+  const bestSeason=arr[0].portfolioScore;
+  $("pairs").innerHTML=arr.slice(0,16).map((x,i)=>{
+    const m=x.m;
+    const safety=((m.one*.55)+(m.both*.45))*100;
+    const leverage=((1-m.b.own/100)*m.b.p/100)*100;
+    const futureGain=(100-m.b.future);
+    const regret=bestSeason-x.portfolioScore;
+    return `<tr>
+      <td>${i+1}</td><td>${m.a.team} + ${m.b.team}</td>
+      <td>${pct(m.one)}</td><td>${pct(m.both)}</td>
+      <td>${safety.toFixed(1)}</td><td>${leverage.toFixed(1)}</td>
+      <td>${futureGain.toFixed(0)}</td><td>${m.score.toFixed(1)}</td>
+      <td>${x.portfolioScore.toFixed(1)}</td><td>${regret.toFixed(1)}</td>
+      <td><b>${i===0?"YES":""}</b></td></tr>`;
+  }).join("");
+}
+function updateWeights(){let v=+$("risk").value,w=W();$("riskV").textContent=v+" / 100";$("riskName").textContent=v<30?"Conservative":v<70?"Balanced":"Aggressive";$("weights").innerHTML=`Safety ${(w.s*100).toFixed(0)}% · ownership leverage ${(w.l*100).toFixed(0)}% · low future-cost ${(w.f*100).toFixed(0)}% · diversification bonus ${(w.d*100).toFixed(0)}%.`}
+function runMC(){if(!lastA[0]||!lastB[0])return;let a=lastA[0],b=lastB[0],m=pair(a,b),teams=wr(+$("currentWeek").value),N=+$("sims").value,pool=+$("pool").value,owns=teams.map(t=>Math.max(0,t.own/100)),sum=owns.reduce((x,y)=>x+y,0)||1,eq=0,aliveRuns=0,totalField=0;
+ $("mcStatus").textContent="Running";for(let k=0;k<N;k++){let wins=teams.map(t=>Math.random()<t.p/100),field=0;for(let i=0;i<pool-2;i++){let r=Math.random()*sum,c=0,idx=owns.length-1;for(let j=0;j<owns.length;j++){c+=owns[j];if(r<=c){idx=j;break}}if(wins[idx])field++}let ia=teams.findIndex(t=>t.team===a.team),ib=teams.findIndex(t=>t.team===b.team),our=(wins[ia]?1:0)+(wins[ib]?1:0);if(our){aliveRuns++;totalField+=field+our;eq+=our/(field+our)}}$("mcPair").textContent=a.team+" + "+b.team;$("field").textContent=aliveRuns?(totalField/aliveRuns).toFixed(1):"—";$("equity").textContent=((eq/N)*100).toFixed(2)+"%";$("mcStatus").textContent="Done"}
+function americanToProb(v){let o=Number(String(v).replace("+",""));if(!Number.isFinite(o)||o===0)return null;return o<0?(-o)/((-o)+100):100/(o+100)}
+function eventTeamAbbr(side){
+  const t=side||{};
+  return normTeam(t.abbreviation||t.names?.short||t.name||t.teamID||"");
+}
+function eventMatchesRow(ev,row){
+  const h=eventTeamAbbr(ev.teams?.home),a=eventTeamAbbr(ev.teams?.away);
+  return (h===row.team&&a===row.opp)||(a===row.team&&h===row.opp);
+}
+function extractFair(event,teamAbbr){
+ const odds=event.odds||{};let vals=[];
+ const h=eventTeamAbbr(event.teams?.home),a=eventTeamAbbr(event.teams?.away);
+ for(const key of Object.keys(odds)){
+   let o=odds[key]||{};
+   if(o.periodID&&o.periodID!=="game")continue;
+   if(o.betTypeID&&o.betTypeID!=="ml")continue;
+   if(!o.fairOdds)continue;
+   let side=(o.sideID||"").toLowerCase();
+   let sideTeam=side==="home"?h:side==="away"?a:"";
+   if(sideTeam===teamAbbr){let p=americanToProb(o.fairOdds);if(p)vals.push(p)}
+ }
+ return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null
+}
+async function refreshOwnership(){
+  $("ownMsg").textContent="Fetching projected Survivor ownership…";
+  try{
+    const week=+$("currentWeek").value;
+    const r=await fetch(`/api/ownership?week=${week}`);
+    if(!r.ok) throw new Error(await r.text());
+    const obj=await r.json();
+    const picks=obj.picks||{};
+    const aliases={WAS:"WSH",LA:"LAR"};
+    let n=0;
+    for(const row of wr(week)){
+      const k=(picks[row.team]!==undefined)?row.team:(aliases[row.team]||row.team);
+      if(picks[k]!==undefined){row.own=Number(picks[k]);n++;}
+    }
+    localStorage.setItem("survivor_final_rows",JSON.stringify(rows));
+    const stamp=obj.updatedAt?new Date(obj.updatedAt):new Date();
+    const pretty=stamp.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+    $("ownMsg").textContent=`Updated ${n} teams from SurvivorGrid projected ownership · ${pretty}`;
+    $("ownStatus").textContent=`Ownership: ${pretty}`;
+    renderBoard();
+    if(!suspendOptimize) optimize();
+    return {ok:true,count:n,updatedAt:pretty};
+  }catch(e){
+    $("ownMsg").textContent="Ownership refresh unavailable; manual values remain.";
+    console.error(e);
+    return {ok:false,error:String(e)};
+  }
+}
+
+async function refreshFuture(){
+ $("futureMsg").textContent="Loading complete 2026 schedule and rebuilding modeled probabilities…";
+ try{
+   const r=await fetch("/api/future");
+   if(!r.ok) throw new Error(await r.text());
+   const obj=await r.json();
+   const oldOwn={};
+   for(const x of rows) oldOwn[`${x.week}|${x.team}`]=x.own;
+   rows=(obj.rows||[]).map(x=>({
+     ...x,team:normTeam(x.team),opp:normTeam(x.opp),
+     own:oldOwn[`${x.week}|${normTeam(x.team)}`]??0,source:"MODEL"
+   }));
+   recalcFutureValues();
+   localStorage.setItem("survivor_final_rows",JSON.stringify(rows));
+   const pretty=new Date().toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+   $("futureMsg").textContent=`Loaded ${rows.length} team-game rows across Weeks 1–18 · ${pretty}`;
+   $("modelStatus").textContent=`Future model: ${pretty}`;
+   renderBoard();if(!suspendOptimize)optimize();
+   return {ok:true,count:rows.length,updatedAt:pretty};
+ }catch(e){
+   $("futureMsg").textContent="Future model refresh unavailable; saved values remain.";
+   console.error(e);
+   return {ok:false,error:String(e)};
+ }
+}
+async function refreshOdds(){
+ $("oddsMsg").textContent="Fetching verified NFL moneylines…";
+ try{
+   const r=await fetch("/api/odds");
+   if(!r.ok) throw new Error(await r.text());
+   const obj=await r.json();
+   const games=obj.games||[];
+   let n=0,rejected=0;
+
+   for(const row of rows){
+     const g=games.find(x =>
+       ((x.home===row.team && x.away===row.opp) || (x.away===row.team && x.home===row.opp))
+     );
+     if(!g) continue;
+     if(!g.valid){rejected++;continue;}
+
+     const p = (row.team===g.home) ? g.homeProb : g.awayProb;
+     if(Number.isFinite(p)){
+       row.p=+(p*100).toFixed(1);
+       row.source="LIVE";
+       row.marketDetail = `${g.away} ${g.awayFairOdds} / ${g.home} ${g.homeFairOdds}`;
+       n++;
+     }
+   }
+
+   recalcFutureValues();
+   localStorage.setItem("survivor_final_rows",JSON.stringify(rows));
+   const pretty=new Date().toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+   $("oddsMsg").textContent=`Verified ${n} team-game probabilities${rejected?` · rejected ${rejected} invalid market rows`:""} · ${pretty}`;
+   $("liveStatus").textContent=`Odds: ${pretty}`;
+   renderBoard();
+   if(!suspendOptimize) optimize();
+   return {ok:true,count:n,rejected,updatedAt:pretty};
+ }catch(e){
+   $("oddsMsg").textContent="Verified live odds unavailable; modeled/manual values remain.";
+   console.error(e);
+   return {ok:false,error:String(e)};
+ }
+}
+
+async function refreshEverything(){
+  const btn=$("refreshAll");
+  const allMsg=$("allMsg");
+  const banner=$("refreshBanner");
+  const t0=performance.now();
+
+  btn.disabled=true;
+  suspendOptimize=true;
+  if(banner){
+    banner.style.display="none";
+    banner.style.borderColor="var(--good)";
+    banner.innerHTML="";
+  }
+
+  try{
+    allMsg.textContent="1/4 Refreshing full-season model…";
+    const future=await refreshFuture();
+
+    allMsg.textContent="2/4 Applying verified live odds…";
+    const odds=await refreshOdds();
+
+    allMsg.textContent="3/4 Refreshing ownership…";
+    const own=await refreshOwnership();
+
+    allMsg.textContent="4/4 Recalculating future value and optimizing…";
+    recalcFutureValues();
+    localStorage.setItem("survivor_final_rows",JSON.stringify(rows));
+
+    suspendOptimize=false;
+    fillManualA();
+    optimize();
+
+    const elapsed=((performance.now()-t0)/1000).toFixed(1);
+    const liveCount=rows.filter(r=>r.source==="LIVE").length;
+    const modelCount=rows.filter(r=>r.source!=="LIVE").length;
+    const week=+$("currentWeek").value;
+    const a=lastA[0]?.team||"—";
+    const b=lastB[0]?.team||"—";
+    const now=new Date().toLocaleString([],{
+      month:"short",day:"numeric",hour:"numeric",minute:"2-digit"
+    });
+
+    if(banner){
+      banner.style.display="block";
+      banner.innerHTML=
+        `<strong>✓ Refresh complete</strong> · ${now}<br>`+
+        `${future?.ok?future.count:0} season team-game rows loaded · `+
+        `${liveCount} LIVE market rows · ${modelCount} MODEL rows · `+
+        `${own?.ok?own.count:0} Week ${week} ownership values updated.<br>`+
+        `<strong>Entry A: ${a} · Recommended Entry B: ${b}</strong><br>`+
+        `Completed in ${elapsed}s.`;
+    }
+    allMsg.textContent="Everything is current and optimized.";
+    return {ok:true};
+  }catch(e){
+    suspendOptimize=false;
+    if(banner){
+      banner.style.display="block";
+      banner.style.borderColor="var(--warn)";
+      banner.innerHTML=
+        `<strong style="color:var(--warn)">Refresh incomplete</strong><br>`+
+        `${String(e)}`;
+    }
+    allMsg.textContent="One or more refresh steps failed; saved data remains.";
+    console.error(e);
+    return {ok:false,error:String(e)};
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+for(let w=1;w<=18;w++)$("currentWeek").add(new Option("Week "+w,w));
+$("risk").oninput=()=>{updateWeights()};$("risk").onchange=()=>{renderBoard();optimize()};$("opt").onclick=optimize;$("currentWeek").onchange=()=>{activeWeek=+$("currentWeek").value;renderTabs();renderBoard();fillManualA();optimize()};$("usedA").onchange=optimize;$("usedB").onchange=optimize;$("reset").onclick=()=>{rows=structuredClone(SEED);localStorage.removeItem("survivor_final_rows");renderBoard();optimize()};$("manualA").onchange=optimize;$("mc").onclick=runMC;$("refreshAll").onclick=refreshEverything;$("refreshFuture").onclick=refreshFuture;$("refreshOdds").onclick=refreshOdds;$("refreshOwnership").onclick=refreshOwnership;
+recalcFutureValues();updateWeights();renderTabs();renderBoard();fillManualA();optimize();
 </script></body></html>
