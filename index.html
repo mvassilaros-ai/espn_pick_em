@@ -29,7 +29,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 </div>
 
 <div class="grid g3" style="margin-top:14px">
-<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Enter the frozen ESPN Pool Lines once. They are saved automatically for this week. Refresh Live Spreads as often as you want — live refresh never overwrites Pool Lines.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshOdds" class="primary">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset This Week</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px"></div></div>
+<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Load the actual NFL week first, enter the frozen ESPN Pool Lines once, then refresh live spreads as often as you want. Pool Lines are saved by matchup and never overwritten.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshSlate" class="primary">Refresh Week + Live Spreads</button><button id="refreshOdds">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset This Week</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px"></div></div>
 <div class="card"><div class="big">Slate diagnostics</div><div class="grid g2" style="margin-top:10px"><div><div class="tiny">Expected correct</div><div id="expCorrect" class="v">—</div></div><div><div class="tiny">Strong edges</div><div id="strongEdges" class="v">—</div></div><div><div class="tiny">Contrarian picks</div><div id="contraCount" class="v">—</div></div><div><div class="tiny">Key-number edges</div><div id="keyCount" class="v">—</div></div></div></div>
 <div class="card"><div class="big">Strategy read</div><div id="strategyRead" class="callout tiny" style="margin-top:10px">—</div></div>
 </div>
@@ -49,13 +49,20 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 
 <script>
 const SEED=[{"away": "NE", "home": "SEA", "pool_spread": -3.5, "market_spread": -4.0, "total": 45.5, "public_fav": 58}, {"away": "SF", "home": "LA", "pool_spread": 1.5, "market_spread": 1.0, "total": 47.0, "public_fav": 52}, {"away": "CHI", "home": "CAR", "pool_spread": 2.5, "market_spread": 2.0, "total": 43.5, "public_fav": 46}, {"away": "BAL", "home": "IND", "pool_spread": 4.5, "market_spread": 5.5, "total": 46.5, "public_fav": 67}, {"away": "ATL", "home": "PIT", "pool_spread": -3.5, "market_spread": -3.5, "total": 44.0, "public_fav": 60}, {"away": "CLE", "home": "JAX", "pool_spread": -6.5, "market_spread": -7.0, "total": 42.5, "public_fav": 72}, {"away": "TB", "home": "CIN", "pool_spread": -2.5, "market_spread": -3.0, "total": 48.5, "public_fav": 61}, {"away": "NYJ", "home": "TEN", "pool_spread": 1.5, "market_spread": 1.0, "total": 41.5, "public_fav": 48}, {"away": "NO", "home": "DET", "pool_spread": -7.5, "market_spread": -8.0, "total": 50.0, "public_fav": 76}, {"away": "BUF", "home": "HOU", "pool_spread": 2.5, "market_spread": 2.0, "total": 49.0, "public_fav": 56}, {"away": "ARI", "home": "LAC", "pool_spread": -8.5, "market_spread": -9.0, "total": 46.0, "public_fav": 79}, {"away": "GB", "home": "MIN", "pool_spread": 1.5, "market_spread": 2.0, "total": 47.5, "public_fav": 54}, {"away": "MIA", "home": "LV", "pool_spread": 3.5, "market_spread": 3.0, "total": 44.5, "public_fav": 44}, {"away": "WAS", "home": "PHI", "pool_spread": -5.5, "market_spread": -6.0, "total": 48.0, "public_fav": 70}, {"away": "DAL", "home": "NYG", "pool_spread": 4.5, "market_spread": 4.0, "total": 45.0, "public_fav": 57}, {"away": "DEN", "home": "KC", "pool_spread": -7.5, "market_spread": -8.0, "total": 44.0, "public_fav": 81}];
-function seasonWeekKey(w){return `ats_pool_games_2026_w${w}`;}
-function loadWeek(w){
-  const saved=JSON.parse(localStorage.getItem(seasonWeekKey(w))||"null");
-  return saved||structuredClone(SEED);
+function seasonWeekKey(w){return `ats_pool_lines_2026_w${w}`;}
+function matchupKey(g){return `${g.away}@${g.home}`;}
+function savedPoolMap(w){
+  try{return JSON.parse(localStorage.getItem(seasonWeekKey(w))||"{}")}catch(e){return {}}
+}
+function savePoolLines(){
+  const m=savedPoolMap(activeWeek);
+  for(const g of games){
+    m[matchupKey(g)]={pool_spread:g.pool_spread,public_fav:g.public_fav,total:g.total};
+  }
+  localStorage.setItem(seasonWeekKey(activeWeek),JSON.stringify(m));
 }
 let activeWeek=Number(localStorage.getItem("ats_pool_active_week")||1);
-let games=loadWeek(activeWeek);
+let games=[];
 const $=x=>document.getElementById(x);
 function sgn(x){
   const n=Number(x);
@@ -115,6 +122,37 @@ function render(){
   tieBreaker()
 }
 function tieBreaker(){const x=+$("tbTotal").value + +$("tbAdj").value;$("tbPick").textContent=Math.max(0,Math.floor(x))}
+
+async function refreshSlate(withOdds=true){
+  $("oddsMsg").textContent=`Loading actual Week ${activeWeek} NFL schedule…`;
+  try{
+    const r=await fetch(`/api/schedule?week=${activeWeek}`);
+    if(!r.ok) throw new Error(await r.text());
+    const obj=await r.json();
+    const saved=savedPoolMap(activeWeek);
+
+    games=(obj.games||[]).map(g=>{
+      const s=saved[`${g.away}@${g.home}`]||{};
+      return {
+        away:g.away,
+        home:g.home,
+        pool_spread:Number.isFinite(Number(s.pool_spread))?Number(s.pool_spread):0,
+        market_spread:0,
+        total:Number.isFinite(Number(s.total))?Number(s.total):0,
+        public_fav:Number.isFinite(Number(s.public_fav))?Number(s.public_fav):50,
+        market_detail:""
+      };
+    });
+
+    $("oddsMsg").textContent=`Loaded ${games.length} actual Week ${activeWeek} games.`;
+    render();
+    if(withOdds) await refreshOdds();
+  }catch(e){
+    $("oddsMsg").textContent="Could not load weekly NFL schedule.";
+    console.error(e);
+  }
+}
+
 async function refreshOdds(){
   $("oddsMsg").textContent="Fetching verified NFL spreads…";
   try{
@@ -140,14 +178,11 @@ async function refreshOdds(){
 }
 for(let w=1;w<=18;w++) $("week").add(new Option(`Week ${w}`,w));
 $("week").value=activeWeek;
-$("week").onchange=()=>{
-  // Save current week exactly as entered before switching.
-  localStorage.setItem(seasonWeekKey(activeWeek),JSON.stringify(games));
+$("week").onchange=async()=>{
+  savePoolLines();
   activeWeek=Number($("week").value);
   localStorage.setItem("ats_pool_active_week",activeWeek);
-  games=loadWeek(activeWeek);
-  $("oddsMsg").textContent=`Loaded saved Pool Lines for Week ${activeWeek}.`;
-  render();
+  await refreshSlate(false);
 };
-$("risk").oninput=()=>{$("riskVal").textContent=$("risk").value+" / 100";render()};$("pool").onchange=render;$("rank").onchange=render;$("behind").onchange=render;$("opt").onclick=render;$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{games=structuredClone(SEED);localStorage.removeItem(seasonWeekKey(activeWeek));games=loadWeek(activeWeek);render()};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;$("riskVal").textContent=$("risk").value+" / 100";render();
+$("risk").oninput=()=>{$("riskVal").textContent=$("risk").value+" / 100";render()};$("pool").onchange=render;$("rank").onchange=render;$("behind").onchange=render;$("opt").onclick=render;$("refreshSlate").onclick=()=>refreshSlate(true);$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{localStorage.removeItem(seasonWeekKey(activeWeek));refreshSlate(false)};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;$("riskVal").textContent=$("risk").value+" / 100";refreshSlate(false);
 </script></body></html>

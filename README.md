@@ -48,3 +48,13 @@ Pool lines are now stored in browser localStorage separately for each NFL week.
 - Reset This Week clears only the currently selected week's saved slate.
 
 Note: persistence is browser/device-specific because it uses localStorage.
+
+
+## V5 schedule-backed slate
+The app no longer relies on the original hard-coded sample slate.
+
+- `/api/schedule?week=N` pulls the actual 2026 NFL regular-season schedule from nflverse.
+- Pool lines are saved separately by matchup and week.
+- Refresh Week + Live Spreads loads the real weekly slate first, then overlays live market lines.
+- Live refresh never overwrites the frozen ESPN Pool Line.
+- This eliminates stale/mismatched sample games such as incorrect KC lines persisting from the prototype.
