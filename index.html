@@ -16,7 +16,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 <div class="sub">Separate app for a ~40-entry season-long ATS pool · verified home/away spread mapping · live consensus market.</div>
 
 <div class="grid g4" style="margin-top:16px">
-<div class="card"><div class="k">Pool entries</div><div class="v"><input id="pool" type="number" value="40"></div></div>
+<div class="card"><div class="k">Pool entries</div><div class="v"><input id="pool" type="number" value="40"></div>
+<div class="tiny" style="margin-top:8px">Pool week</div><select id="week"></select></div>
 <div class="card"><div class="k">Your rank</div><div class="v"><input id="rank" type="number" value="20" min="1"></div></div>
 <div class="card"><div class="k">Games behind leader</div><div class="v"><input id="behind" type="number" value="0" min="0"></div></div>
 <div class="card"><div class="k">Strategy</div><div class="v" id="modeName">Balanced</div></div>
@@ -28,7 +29,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 </div>
 
 <div class="grid g3" style="margin-top:14px">
-<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Enter pool lines → refresh live spreads → update public pick % if known → optimize.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshOdds" class="primary">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px"></div></div>
+<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Enter the frozen ESPN Pool Lines once. They are saved automatically for this week. Refresh Live Spreads as often as you want — live refresh never overwrites Pool Lines.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshOdds" class="primary">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset This Week</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px"></div></div>
 <div class="card"><div class="big">Slate diagnostics</div><div class="grid g2" style="margin-top:10px"><div><div class="tiny">Expected correct</div><div id="expCorrect" class="v">—</div></div><div><div class="tiny">Strong edges</div><div id="strongEdges" class="v">—</div></div><div><div class="tiny">Contrarian picks</div><div id="contraCount" class="v">—</div></div><div><div class="tiny">Key-number edges</div><div id="keyCount" class="v">—</div></div></div></div>
 <div class="card"><div class="big">Strategy read</div><div id="strategyRead" class="callout tiny" style="margin-top:10px">—</div></div>
 </div>
@@ -48,7 +49,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 
 <script>
 const SEED=[{"away": "NE", "home": "SEA", "pool_spread": -3.5, "market_spread": -4.0, "total": 45.5, "public_fav": 58}, {"away": "SF", "home": "LA", "pool_spread": 1.5, "market_spread": 1.0, "total": 47.0, "public_fav": 52}, {"away": "CHI", "home": "CAR", "pool_spread": 2.5, "market_spread": 2.0, "total": 43.5, "public_fav": 46}, {"away": "BAL", "home": "IND", "pool_spread": 4.5, "market_spread": 5.5, "total": 46.5, "public_fav": 67}, {"away": "ATL", "home": "PIT", "pool_spread": -3.5, "market_spread": -3.5, "total": 44.0, "public_fav": 60}, {"away": "CLE", "home": "JAX", "pool_spread": -6.5, "market_spread": -7.0, "total": 42.5, "public_fav": 72}, {"away": "TB", "home": "CIN", "pool_spread": -2.5, "market_spread": -3.0, "total": 48.5, "public_fav": 61}, {"away": "NYJ", "home": "TEN", "pool_spread": 1.5, "market_spread": 1.0, "total": 41.5, "public_fav": 48}, {"away": "NO", "home": "DET", "pool_spread": -7.5, "market_spread": -8.0, "total": 50.0, "public_fav": 76}, {"away": "BUF", "home": "HOU", "pool_spread": 2.5, "market_spread": 2.0, "total": 49.0, "public_fav": 56}, {"away": "ARI", "home": "LAC", "pool_spread": -8.5, "market_spread": -9.0, "total": 46.0, "public_fav": 79}, {"away": "GB", "home": "MIN", "pool_spread": 1.5, "market_spread": 2.0, "total": 47.5, "public_fav": 54}, {"away": "MIA", "home": "LV", "pool_spread": 3.5, "market_spread": 3.0, "total": 44.5, "public_fav": 44}, {"away": "WAS", "home": "PHI", "pool_spread": -5.5, "market_spread": -6.0, "total": 48.0, "public_fav": 70}, {"away": "DAL", "home": "NYG", "pool_spread": 4.5, "market_spread": 4.0, "total": 45.0, "public_fav": 57}, {"away": "DEN", "home": "KC", "pool_spread": -7.5, "market_spread": -8.0, "total": 44.0, "public_fav": 81}];
-let games=JSON.parse(localStorage.getItem("ats_pool_games")||"null")||structuredClone(SEED);
+function seasonWeekKey(w){return `ats_pool_games_2026_w${w}`;}
+function loadWeek(w){
+  const saved=JSON.parse(localStorage.getItem(seasonWeekKey(w))||"null");
+  return saved||structuredClone(SEED);
+}
+let activeWeek=Number(localStorage.getItem("ats_pool_active_week")||1);
+let games=loadWeek(activeWeek);
 const $=x=>document.getElementById(x);
 function sgn(x){
   const n=Number(x);
@@ -87,7 +94,7 @@ function render(){
   });
   tb.querySelectorAll("input").forEach(inp=>inp.onchange=e=>{
     games[+e.target.dataset.i][e.target.dataset.k]=Number(e.target.value);
-    localStorage.setItem("ats_pool_games",JSON.stringify(games));
+    localStorage.setItem(seasonWeekKey(activeWeek),JSON.stringify(games));
     render()
   });
   $("expCorrect").textContent=expected.toFixed(1);
@@ -123,7 +130,7 @@ async function refreshOdds(){
       g.market_detail=`${x.away} ${sgn(x.awaySpread)} / ${x.home} ${sgn(x.homeSpread)} · ${x.method}${x.bookDetail?` · ${x.bookDetail}`:""}`;
       n++;
     }
-    localStorage.setItem("ats_pool_games",JSON.stringify(games));
+    localStorage.setItem(seasonWeekKey(activeWeek),JSON.stringify(games));
     $("oddsMsg").textContent=`Verified ${n} game spreads${rejected?` · rejected ${rejected} invalid rows`:""}.`;
     render();
   }catch(e){
@@ -131,5 +138,16 @@ async function refreshOdds(){
     console.error(e)
   }
 }
-$("risk").oninput=()=>{$("riskVal").textContent=$("risk").value+" / 100";render()};$("pool").onchange=render;$("rank").onchange=render;$("behind").onchange=render;$("opt").onclick=render;$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{games=structuredClone(SEED);localStorage.removeItem("ats_pool_games");render()};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;$("riskVal").textContent=$("risk").value+" / 100";render();
+for(let w=1;w<=18;w++) $("week").add(new Option(`Week ${w}`,w));
+$("week").value=activeWeek;
+$("week").onchange=()=>{
+  // Save current week exactly as entered before switching.
+  localStorage.setItem(seasonWeekKey(activeWeek),JSON.stringify(games));
+  activeWeek=Number($("week").value);
+  localStorage.setItem("ats_pool_active_week",activeWeek);
+  games=loadWeek(activeWeek);
+  $("oddsMsg").textContent=`Loaded saved Pool Lines for Week ${activeWeek}.`;
+  render();
+};
+$("risk").oninput=()=>{$("riskVal").textContent=$("risk").value+" / 100";render()};$("pool").onchange=render;$("rank").onchange=render;$("behind").onchange=render;$("opt").onclick=render;$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{games=structuredClone(SEED);localStorage.removeItem(seasonWeekKey(activeWeek));games=loadWeek(activeWeek);render()};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;$("riskVal").textContent=$("risk").value+" / 100";render();
 </script></body></html>

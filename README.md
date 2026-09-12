@@ -36,3 +36,15 @@ It now:
 - returns per-book detail for auditing
 
 This directly addresses the observed MIA/LV sign inversion.
+
+
+## V4 persistent weekly pool lines
+Pool lines are now stored in browser localStorage separately for each NFL week.
+
+- Editing a Pool Line saves it automatically.
+- Refresh Live Spreads updates only the live market fields and never overwrites Pool Lines.
+- Switching weeks saves the current week's entries and loads that week's saved snapshot.
+- Returning to a prior week restores exactly what was entered.
+- Reset This Week clears only the currently selected week's saved slate.
+
+Note: persistence is browser/device-specific because it uses localStorage.
