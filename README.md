@@ -67,3 +67,18 @@ Fixes a V5 bug where the entire game array was accidentally written into the mat
 - Also repairs the buggy V5 case where an array was stored under `ats_pool_lines_2026_wN`.
 - Refresh Live Spreads never writes live market lines into the frozen pool-line store.
 - New slates show `—` for live market until a verified market refresh succeeds, rather than displaying misleading 0.0 lines.
+
+
+## V7 null-safe line handling
+Critical zero-line bug fixed.
+
+JavaScript converts `Number(null)` to `0`; previous versions could therefore mistake a missing API spread for a legitimate pick'em line.
+
+V7:
+- uses strict parsing where null/undefined/blank remains null
+- never converts a missing live spread to 0
+- never converts a missing ESPN Pool Line to 0
+- displays missing live lines as `—`
+- displays missing pool lines as blank / `Not entered`
+- excludes games without a Pool Line from recommendations until you enter the frozen ESPN line
+- preserves saved Pool Lines by week/matchup

@@ -63,9 +63,9 @@ function migrateLegacyWeek(w){
       for(const g of legacy){
         if(!g?.away||!g?.home) continue;
         m[`${g.away}@${g.home}`]={
-          pool_spread:Number(g.pool_spread)||0,
-          public_fav:Number(g.public_fav)||50,
-          total:Number(g.total)||0
+          pool_spread:(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?null:Number(g.pool_spread),
+          public_fav:(g.public_fav===null||g.public_fav===undefined||g.public_fav==="")?50:Number(g.public_fav),
+          total:(g.total===null||g.total===undefined||g.total==="")?null:Number(g.total)
         };
       }
       localStorage.setItem(newKey,JSON.stringify(m));
@@ -83,9 +83,9 @@ function savedPoolMap(w){
       for(const g of raw){
         if(!g?.away||!g?.home) continue;
         m[`${g.away}@${g.home}`]={
-          pool_spread:Number(g.pool_spread)||0,
-          public_fav:Number(g.public_fav)||50,
-          total:Number(g.total)||0
+          pool_spread:(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?null:Number(g.pool_spread),
+          public_fav:(g.public_fav===null||g.public_fav===undefined||g.public_fav==="")?50:Number(g.public_fav),
+          total:(g.total===null||g.total===undefined||g.total==="")?null:Number(g.total)
         };
       }
       localStorage.setItem(seasonWeekKey(w),JSON.stringify(m));
@@ -99,9 +99,9 @@ function savePoolLines(){
   const m=savedPoolMap(activeWeek);
   for(const g of games){
     m[matchupKey(g)]={
-      pool_spread:Number(g.pool_spread)||0,
-      public_fav:Number(g.public_fav)||50,
-      total:Number(g.total)||0
+      pool_spread:(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?null:Number(g.pool_spread),
+      public_fav:(g.public_fav===null||g.public_fav===undefined||g.public_fav==="")?50:Number(g.public_fav),
+      total:(g.total===null||g.total===undefined||g.total==="")?null:Number(g.total)
     };
   }
   localStorage.setItem(seasonWeekKey(activeWeek),JSON.stringify(m));
@@ -110,42 +110,92 @@ let activeWeek=Number(localStorage.getItem("ats_pool_active_week")||1);
 let games=[];
 const $=x=>document.getElementById(x);
 function sgn(x){
+  if(x===null||x===undefined||x==="") return "—";
   const n=Number(x);
   if(!Number.isFinite(n)) return "—";
   return n>0?`+${n.toFixed(1)}`:n.toFixed(1);
+}`:n.toFixed(1);
 }
 
 function normcdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2);let p=1-d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>=0?p:1-p}
 function keyWeight(pool,market){const keys=[3,7,2,6,10,14];const a=Math.abs(pool),b=Math.abs(market),lo=Math.min(a,b),hi=Math.max(a,b);let score=0;for(const k of keys)if(lo<k&&hi>=k)score+=(k===3?1.8:k===7?1.4:.6);return score}
-function metrics(g){const sigma=13.86,live=Number.isFinite(Number(g.market_spread))?Number(g.market_spread):Number(g.pool_spread),marketMean=-live,threshold=-g.pool_spread;let homeCover=1-normcdf((threshold-marketMean)/sigma);homeCover=Math.max(.02,Math.min(.98,homeCover));const awayCover=1-homeCover,homeFav=g.pool_spread<0,favCover=homeFav?homeCover:awayCover,dogCover=1-favCover;return{homeCover,awayCover,favCover,dogCover,lineEdge:Math.abs(g.market_spread-g.pool_spread),key:keyWeight(g.pool_spread,g.market_spread),homeFav}}
+function metrics(g){
+  const poolLine=(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?null:Number(g.pool_spread);
+  const liveLine=(g.market_spread===null||g.market_spread===undefined||g.market_spread==="")?null:Number(g.market_spread);
+
+  if(poolLine===null || !Number.isFinite(poolLine)){
+    return {complete:false,homeCover:.5,awayCover:.5,favCover:.5,dogCover:.5,lineEdge:0,key:0,homeFav:false};
+  }
+
+  const effectiveLive=(liveLine!==null&&Number.isFinite(liveLine))?liveLine:poolLine;
+  const sigma=13.86;
+  const marketMean=-effectiveLive;
+  const threshold=-poolLine;
+  let homeCover=1-normcdf((threshold-marketMean)/sigma);
+  homeCover=Math.max(.02,Math.min(.98,homeCover));
+  const awayCover=1-homeCover;
+  const homeFav=poolLine<0;
+  const favCover=homeFav?homeCover:awayCover;
+  const dogCover=1-favCover;
+
+  return {
+    complete:true,
+    homeCover,awayCover,favCover,dogCover,
+    lineEdge:(liveLine!==null&&Number.isFinite(liveLine))?Math.abs(liveLine-poolLine):0,
+    key:(liveLine!==null&&Number.isFinite(liveLine))?keyWeight(poolLine,liveLine):0,
+    homeFav
+  };
+}
 function strategy(){const r=+$("risk").value/100,behind=+$("behind").value,rank=+$("rank").value,pool=+$("pool").value;const chase=Math.min(1,r*.65+Math.min(behind/6,.35)+Math.max(0,(rank/pool)-.5)*.25);return{accuracy:.88-.18*chase,leverage:.05+.22*chase,key:.07+.04*chase,chase}}
-function pickGame(g){const m=metrics(g),s=strategy(),favPublic=Math.max(.01,Math.min(.99,g.public_fav/100)),dogPublic=1-favPublic;const favScore=s.accuracy*m.favCover+s.leverage*(1-favPublic)+s.key*(m.key/3),dogScore=s.accuracy*m.dogCover+s.leverage*(1-dogPublic)+s.key*(m.key/3),pickFav=favScore>=dogScore,cover=pickFav?m.favCover:m.dogCover,publicPct=pickFav?favPublic:dogPublic,homePick=pickFav?m.homeFav:!m.homeFav,team=homePick?g.home:g.away,score=Math.max(favScore,dogScore);let conf=cover>=.58?"A":cover>=.55?"B+":cover>=.53?"B":cover>=.515?"C+":"C";let reason=[];if(m.lineEdge>=1.5)reason.push("stale line");if(m.key>=1.4)reason.push("key-number move");if(publicPct<.4&&cover>.50)reason.push("leverage");if(!reason.length)reason.push("market lean");return{...m,pickFav,team,cover,publicPct,score,conf,reason:reason.join(", ")}}
+function pickGame(g){
+  const m=metrics(g);
+  if(!m.complete){
+    return {...m,pickFav:false,team:"ENTER LINE",cover:0,publicPct:0,score:-1,conf:"—",reason:"pool line required"};
+  }
+  const s=strategy(),
+    favPublic=Math.max(.01,Math.min(.99,(Number(g.public_fav)||50)/100)),
+    dogPublic=1-favPublic;
+  const favScore=s.accuracy*m.favCover+s.leverage*(1-favPublic)+s.key*(m.key/3);
+  const dogScore=s.accuracy*m.dogCover+s.leverage*(1-dogPublic)+s.key*(m.key/3);
+  const pickFav=favScore>=dogScore,cover=pickFav?m.favCover:m.dogCover;
+  const publicPct=pickFav?favPublic:dogPublic;
+  const homePick=pickFav?m.homeFav:!m.homeFav;
+  const team=homePick?g.home:g.away;
+  const score=Math.max(favScore,dogScore);
+  let conf=cover>=.58?"A":cover>=.55?"B+":cover>=.53?"B":cover>=.515?"C+":"C";
+  let reason=[];
+  if(m.lineEdge>=1.5)reason.push("stale line");
+  if(m.key>=1.4)reason.push("key-number move");
+  if(publicPct<.4&&cover>.50)reason.push("leverage");
+  if(!reason.length)reason.push(g.market_spread==null?"pool line only":"market lean");
+  return {...m,pickFav,team,cover,publicPct,score,conf,reason:reason.join(", ")};
+}
 function render(){
   let tb=$("board");tb.innerHTML="";
   let expected=0,strong=0,contra=0,keys=0,ranked=[];
   games.forEach((g,i)=>{
     const x=pickGame(g);
-    expected+=x.cover;
+    if(x.complete) expected+=x.cover;
     if(x.cover>=.55)strong++;
     if(x.publicPct<.4)contra++;
     if(x.key>=1.4)keys++;
-    ranked.push({g,x});
-    const poolDetail=`${g.away} ${sgn(-g.pool_spread)} / ${g.home} ${sgn(g.pool_spread)}`;
+    if(x.complete) ranked.push({g,x});
+    const poolDetail=(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?"Not entered":`${g.away} ${sgn(-g.pool_spread)} / ${g.home} ${sgn(g.pool_spread)}`;
     const liveDetail=g.market_detail||(g.market_spread==null?"—":`${g.away} ${sgn(-g.market_spread)} / ${g.home} ${sgn(g.market_spread)}`);
     tb.insertAdjacentHTML("beforeend",`<tr>
       <td>${g.away}</td><td>${g.home}</td>
-      <td><div class="tiny">${g.home}</div><input type="number" step=".5" data-i="${i}" data-k="pool_spread" value="${g.pool_spread}"><div class="tiny">${poolDetail}</div></td>
+      <td><div class="tiny">${g.home}</div><input type="number" step=".5" data-i="${i}" data-k="pool_spread" value="${g.pool_spread??""}"><div class="tiny">${poolDetail}</div></td>
       <td><b>${g.market_spread==null?"—":`${g.home} ${sgn(g.market_spread)}`}</b></td>
       <td class="tiny">${liveDetail}</td>
       <td class="${x.lineEdge>=1.5?'good':''}">${x.lineEdge.toFixed(1)}</td>
-      <td><input type="number" step=".5" data-i="${i}" data-k="total" value="${g.total}"></td>
+      <td><input type="number" step=".5" data-i="${i}" data-k="total" value="${g.total??""}"></td>
       <td><input type="number" step="1" data-i="${i}" data-k="public_fav" value="${g.public_fav}"></td>
       <td>${(x.favCover*100).toFixed(1)}%</td><td>${(x.dogCover*100).toFixed(1)}%</td>
       <td>${x.key.toFixed(1)}</td><td><b>${x.team}</b></td><td>${x.conf}</td><td>${(x.score*100).toFixed(1)}</td>
     </tr>`)
   });
   tb.querySelectorAll("input").forEach(inp=>inp.onchange=e=>{
-    games[+e.target.dataset.i][e.target.dataset.k]=Number(e.target.value);
+    games[+e.target.dataset.i][e.target.dataset.k]=(e.target.value==="")?null:Number(e.target.value);
     savePoolLines();
     render()
   });
@@ -181,9 +231,9 @@ async function refreshSlate(withOdds=true){
       return {
         away:g.away,
         home:g.home,
-        pool_spread:Number.isFinite(Number(s.pool_spread))?Number(s.pool_spread):0,
+        pool_spread:(s.pool_spread===null||s.pool_spread===undefined||s.pool_spread==="")?null:Number(s.pool_spread),
         market_spread:null,
-        total:Number.isFinite(Number(s.total))?Number(s.total):0,
+        total:(s.total===null||s.total===undefined||s.total==="")?null:Number(s.total),
         public_fav:Number.isFinite(Number(s.public_fav))?Number(s.public_fav):50,
         market_detail:""
       };
@@ -214,7 +264,7 @@ async function refreshOdds(){
       n++;
     }
     savePoolLines();
-    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""}. Pool lines unchanged.`;
+    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""}. Missing lines stay blank; Pool Lines unchanged.`;
     render();
   }catch(e){
     $("oddsMsg").textContent="Verified live spread refresh unavailable; manual values remain.";
