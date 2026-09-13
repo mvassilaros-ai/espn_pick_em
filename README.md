@@ -82,3 +82,17 @@ V7:
 - displays missing pool lines as blank / `Not entered`
 - excludes games without a Pool Line from recommendations until you enter the frozen ESPN line
 - preserves saved Pool Lines by week/matchup
+
+
+## V8 robust spread parser
+The SportsGameOdds parser no longer relies on exact oddID strings or a fixed bookmaker list.
+
+It now:
+- requests upcoming NFL events without an oddID filter
+- scans returned odds for full-game (`periodID=game`) spread (`betTypeID=sp`) markets
+- identifies home/away using `sideID`
+- pairs the same bookmaker's home and away spread
+- requires each same-book pair to mirror
+- takes the median across every valid paired bookmaker
+- falls back to `fairSpread` only if paired bookmaker data is unavailable
+- returns eventCount/validCount diagnostics so the UI tells us whether the API actually supplied usable markets

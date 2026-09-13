@@ -264,7 +264,7 @@ async function refreshOdds(){
       n++;
     }
     savePoolLines();
-    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""}. Missing lines stay blank; Pool Lines unchanged.`;
+    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. Missing lines stay blank; Pool Lines unchanged.`;
     render();
   }catch(e){
     $("oddsMsg").textContent="Verified live spread refresh unavailable; manual values remain.";
