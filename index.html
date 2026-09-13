@@ -29,7 +29,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 </div>
 
 <div class="grid g3" style="margin-top:14px">
-<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Load the actual NFL week first, enter the frozen ESPN Pool Lines once, then refresh live spreads as often as you want. Pool Lines are saved by matchup and never overwritten.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshSlate" class="primary">Refresh Week + Live Spreads</button><button id="refreshOdds">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset This Week</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px"></div></div>
+<div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Load the actual NFL week first, enter the frozen ESPN Pool Lines once, then refresh live spreads as often as you want. Pool Lines are saved by matchup and never overwritten.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshSlate" class="primary">Refresh Week + Live Spreads</button><button id="refreshOdds">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset This Week</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px">Initializing Week 1…</div></div>
 <div class="card"><div class="big">Slate diagnostics</div><div class="grid g2" style="margin-top:10px"><div><div class="tiny">Expected correct</div><div id="expCorrect" class="v">—</div></div><div><div class="tiny">Strong edges</div><div id="strongEdges" class="v">—</div></div><div><div class="tiny">Contrarian picks</div><div id="contraCount" class="v">—</div></div><div><div class="tiny">Key-number edges</div><div id="keyCount" class="v">—</div></div></div></div>
 <div class="card"><div class="big">Strategy read</div><div id="strategyRead" class="callout tiny" style="margin-top:10px">—</div></div>
 </div>
@@ -114,7 +114,6 @@ function sgn(x){
   const n=Number(x);
   if(!Number.isFinite(n)) return "—";
   return n>0?`+${n.toFixed(1)}`:n.toFixed(1);
-}`:n.toFixed(1);
 }
 
 function normcdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2);let p=1-d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>=0?p:1-p}

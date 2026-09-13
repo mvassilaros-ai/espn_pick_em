@@ -96,3 +96,9 @@ It now:
 - takes the median across every valid paired bookmaker
 - falls back to `fairSpread` only if paired bookmaker data is unavailable
 - returns eventCount/validCount diagnostics so the UI tells us whether the API actually supplied usable markets
+
+
+## V9 initialization fix
+V8 had a JavaScript syntax error in the `sgn()` display helper. Because browser JavaScript stops parsing at a syntax error, the Week dropdown never populated and no schedule/odds requests ran.
+
+V9 removes the malformed fragment and was syntax-checked with Node before packaging. The robust V8 spread parser and schedule-backed slate remain intact.
