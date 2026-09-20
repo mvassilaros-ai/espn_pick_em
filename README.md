@@ -102,3 +102,10 @@ It now:
 V8 had a JavaScript syntax error in the `sgn()` display helper. Because browser JavaScript stops parsing at a syntax error, the Week dropdown never populated and no schedule/odds requests ran.
 
 V9 removes the malformed fragment and was syntax-checked with Node before packaging. The robust V8 spread parser and schedule-backed slate remain intact.
+
+## V10 live-refresh fix
+- Live Spread refresh now appends a unique refresh token to every `/api/odds` request.
+- Browser fetch uses `cache: "no-store"`.
+- Odds API response explicitly disables browser, Vercel CDN, and intermediary caching.
+- Refresh status shows the API timestamp and how many current-week games actually matched.
+- Frozen ESPN pool lines remain untouched.

@@ -250,7 +250,8 @@ async function refreshSlate(withOdds=true){
 async function refreshOdds(){
   $("oddsMsg").textContent="Fetching verified NFL spreads…";
   try{
-    const r=await fetch("/api/odds");
+    const refreshToken=Date.now();
+    const r=await fetch(`/api/odds?refresh=${refreshToken}`,{cache:"no-store"});
     if(!r.ok)throw new Error(await r.text());
     const obj=await r.json(),live=obj.games||[];
     let n=0,rejected=0;
@@ -263,7 +264,8 @@ async function refreshOdds(){
       n++;
     }
     savePoolLines();
-    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. Missing lines stay blank; Pool Lines unchanged.`;
+    const stamp=obj.updatedAt?new Date(obj.updatedAt).toLocaleTimeString():"unknown";
+    $("oddsMsg").textContent=`REFRESHED ${stamp} · matched ${n}/${games.length} Week ${activeWeek} games${rejected?` · rejected ${rejected}`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spreads. Pool Lines unchanged.`;
     render();
   }catch(e){
     $("oddsMsg").textContent="Verified live spread refresh unavailable; manual values remain.";
