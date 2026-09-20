@@ -109,3 +109,4 @@ V9 removes the malformed fragment and was syntax-checked with Node before packag
 - Odds API response explicitly disables browser, Vercel CDN, and intermediary caching.
 - Refresh status shows the API timestamp and how many current-week games actually matched.
 - Frozen ESPN pool lines remain untouched.
+\n\n## V11 — resilient dual-source odds\nPrimary: The Odds API (`THE_ODDS_API_KEY`). Fallback: SportsGameOdds (`SPORTSGAMEODDS_API_KEY`). Last successful live snapshot is retained in browser storage and restored if live providers fail. Frozen ESPN pool lines are never overwritten.\n

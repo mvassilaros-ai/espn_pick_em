@@ -250,8 +250,7 @@ async function refreshSlate(withOdds=true){
 async function refreshOdds(){
   $("oddsMsg").textContent="Fetching verified NFL spreads…";
   try{
-    const refreshToken=Date.now();
-    const r=await fetch(`/api/odds?refresh=${refreshToken}`,{cache:"no-store"});
+    const r=await fetch("/api/odds",{cache:"no-store"});
     if(!r.ok)throw new Error(await r.text());
     const obj=await r.json(),live=obj.games||[];
     let n=0,rejected=0;
@@ -265,10 +264,22 @@ async function refreshOdds(){
     }
     savePoolLines();
     const stamp=obj.updatedAt?new Date(obj.updatedAt).toLocaleTimeString():"unknown";
-    $("oddsMsg").textContent=`REFRESHED ${stamp} · matched ${n}/${games.length} Week ${activeWeek} games${rejected?` · rejected ${rejected}`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spreads. Pool Lines unchanged.`;
+    localStorage.setItem("ats_last_good_live_odds_2026",JSON.stringify({updatedAt:obj.updatedAt,source:obj.source,games:obj.games}));
+    $("oddsMsg").textContent=`REFRESHED ${stamp} via ${obj.source||"live source"} · matched ${n}/${games.length} Week ${activeWeek} games${rejected?` · rejected ${rejected}`:""} · ${obj.validCount??"?"} valid spreads${obj.remaining?` · ${obj.remaining} credits remaining`:""}. Pool Lines unchanged.`;
     render();
   }catch(e){
-    $("oddsMsg").textContent="Verified live spread refresh unavailable; manual values remain.";
+    let restored=0,age="";
+    try{
+      const snap=JSON.parse(localStorage.getItem("ats_last_good_live_odds_2026")||"null");
+      if(snap?.games?.length){
+        for(const g of games){
+          const x=snap.games.find(v=>v.home===g.home&&v.away===g.away&&v.valid);
+          if(x){g.market_spread=x.homeSpread;g.market_detail=`cached ${snap.source||"live source"} · ${x.bookDetail||""}`;restored++;}
+        }
+        age=snap.updatedAt?new Date(snap.updatedAt).toLocaleString():"unknown time";render();
+      }
+    }catch(_){}
+    $("oddsMsg").textContent=restored?`LIVE REFRESH FAILED · preserved ${restored} cached spreads from ${age}. Pool Lines unchanged.`:`LIVE REFRESH FAILED · no cached market snapshot available. Pool Lines unchanged.`;
     console.error(e)
   }
 }
