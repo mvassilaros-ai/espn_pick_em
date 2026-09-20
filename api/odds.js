@@ -159,7 +159,9 @@ export default async function handler(req,res){
       });
     }
 
-    res.setHeader("Cache-Control","s-maxage=120, stale-while-revalidate=300");
+    res.setHeader("Cache-Control","no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    res.setHeader("CDN-Cache-Control","no-store");
+    res.setHeader("Vercel-CDN-Cache-Control","no-store");
     return res.status(200).json({
       games,
       eventCount:events.length,
