@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NFL ATS Pool Optimizer</title>
+<title>NFL ATS Pool Optimizer V10</title>
 <style>
 :root{--bg:#0a1020;--panel:#121a2e;--text:#eef3ff;--muted:#9eabc7;--border:#2b385a;--accent:#64b5ff;--good:#65d6a6;--warn:#ffd166}
 *{box-sizing:border-box}body{margin:0;background:#0a1020;color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
@@ -12,21 +12,18 @@ select,input[type=number],input[type=text]{width:100%;background:#0d1528;color:v
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;border-bottom:1px solid var(--border);white-space:nowrap;text-align:left}th{font-size:11px;color:#b7c3d9}.scroll{overflow:auto}.callout{border-left:4px solid var(--accent);padding-left:10px}
 @media(max-width:950px){.g4,.g3,.g2{grid-template-columns:1fr 1fr}}@media(max-width:620px){.g4,.g3,.g2{grid-template-columns:1fr}}
 </style></head><body><div class="wrap">
-<h1>NFL ATS Pool Optimizer</h1>
-<div class="sub">Separate app for a ~40-entry season-long ATS pool · verified home/away spread mapping · live consensus market.</div>
+<h1>NFL ATS Pool Optimizer V10</h1>
+<div class="sub">Market-first ATS engine · frozen pool lines · empirical key-number adjustment · standings-aware leverage.</div>
 
 <div class="grid g4" style="margin-top:16px">
 <div class="card"><div class="k">Pool entries</div><div class="v"><input id="pool" type="number" value="40"></div>
 <div class="tiny" style="margin-top:8px">Pool week</div><select id="week"></select></div>
 <div class="card"><div class="k">Your rank</div><div class="v"><input id="rank" type="number" value="20" min="1"></div></div>
-<div class="card"><div class="k">Games behind leader</div><div class="v"><input id="behind" type="number" value="0" min="0"></div></div>
+<div class="card"><div class="k">Your score</div><div class="v"><input id="myScore" type="number" value="0" min="0"></div><div class="tiny">Leader score</div><input id="leaderScore" type="number" value="0" min="0"></div>
 <div class="card"><div class="k">Strategy</div><div class="v" id="modeName">Balanced</div></div>
 </div>
 
-<div class="card" style="margin-top:14px">
-<div class="row spread"><div><div class="big">Risk / contrarian posture</div><div class="tiny">Low = maximize expected correct picks. High = selectively increase variance when chasing.</div></div><div id="riskVal" class="pill">40 / 100</div></div>
-<input id="risk" type="range" min="0" max="100" value="40">
-</div>
+<div class="card" style="margin-top:14px"><div class="row spread"><div><div class="big">Automatic strategy posture</div><div class="tiny">V10 derives leverage from week, score deficit, rank and pool size. No manual risk slider.</div></div><div id="riskVal" class="pill">Automatic</div></div></div>
 
 <div class="grid g3" style="margin-top:14px">
 <div class="card"><div class="big">Weekly workflow</div><div class="tiny" style="margin-top:8px">Load the actual NFL week first, enter the frozen ESPN Pool Lines once, then refresh live spreads as often as you want. Pool Lines are saved by matchup and never overwritten.</div><div class="row" style="margin-top:12px;flex-wrap:wrap"><button id="refreshSlate" class="primary">Refresh Week + Live Spreads</button><button id="refreshOdds">Refresh Live Spreads</button><button id="opt">Optimize Picks</button><button id="reset">Reset This Week</button></div><div id="oddsMsg" class="tiny" style="margin-top:8px">Initializing Week 1…</div></div>
@@ -36,12 +33,12 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 
 <div class="card" style="margin-top:14px">
 <div class="row spread"><div><div class="big">Game board</div><div class="tiny">Pool spread is from HOME-team perspective. Negative = home favorite.</div></div><div class="pill">All games editable</div></div>
-<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Away</th><th>Home</th><th>Pool line (HOME)</th><th>Live market (HOME)</th><th>Market detail</th><th>Line edge</th><th>Total</th><th>Public on favorite %</th><th>Fav cover %</th><th>Dog cover %</th><th>Key #</th><th>Pick</th><th>Confidence</th><th>Score</th></tr></thead><tbody id="board"></tbody></table></div>
+<div class="scroll" style="margin-top:10px"><table><thead><tr><th>Away</th><th>Home</th><th>Pool line (HOME)</th><th>Live market (HOME)</th><th>Market detail</th><th>Line edge</th><th>Total</th><th>Public on favorite %</th><th>Fav cover %</th><th>Dog cover %</th><th>Key adj.</th><th>Pick</th><th>Confidence</th><th>Score</th></tr></thead><tbody id="board"></tbody></table></div>
 </div>
 
 <div class="grid g2" style="margin-top:14px">
 <div class="card"><div class="big">Recommended picks — strongest first</div><div class="scroll"><table><thead><tr><th>#</th><th>Game</th><th>Pick</th><th>Pool</th><th>Live</th><th>Cover %</th><th>Public</th><th>Edge</th><th>Reason</th></tr></thead><tbody id="ranked"></tbody></table></div></div>
-<div class="card"><div class="big">How the model thinks</div><div class="tiny" style="margin-top:8px"><b>Market edge:</b> stale pool line vs current market is the biggest input.<br><br><b>Key numbers:</b> crossing 3 or 7 matters more than an ordinary point move.<br><br><b>Public leverage:</b> lower-owned sides gain value mainly when you are chasing and expected cover probabilities are close.<br><br><b>Accuracy:</b> remains the dominant objective.</div></div>
+<div class="card"><div class="big">How V10 thinks</div><div class="tiny" style="margin-top:8px"><b>1. Cover probability:</b> current consensus market versus the frozen pool line.<br><br><b>2. NFL scoring geometry:</b> directional adjustments when the pool line crosses 3, 7, 6, 10 or 14; 3 and 7 matter most.<br><br><b>3. Accuracy first:</b> the higher cover probability wins unless the sides are close enough for standings-aware leverage.<br><br><b>4. Public leverage:</b> can break close decisions only; the allowable probability sacrifice grows automatically when late and behind.</div></div>
 </div>
 
 <div class="card" style="margin-top:14px"><div class="big">Tie-break helper</div><div class="grid g3" style="margin-top:10px"><div><div class="tiny">Market total</div><input id="tbTotal" type="number" step=".5" value="45.5"></div><div><div class="tiny">Lean adjustment</div><input id="tbAdj" type="number" step=".5" value="0"></div><div><div class="tiny">Suggested total points</div><div id="tbPick" class="v">45</div></div></div></div>
@@ -117,56 +114,72 @@ function sgn(x){
 }
 
 function normcdf(x){const t=1/(1+0.2316419*Math.abs(x)),d=0.3989423*Math.exp(-x*x/2);let p=1-d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>=0?p:1-p}
-function keyWeight(pool,market){const keys=[3,7,2,6,10,14];const a=Math.abs(pool),b=Math.abs(market),lo=Math.min(a,b),hi=Math.max(a,b);let score=0;for(const k of keys)if(lo<k&&hi>=k)score+=(k===3?1.8:k===7?1.4:.6);return score}
+
+// Empirical correction for NFL scoring clusters.  The base market-vs-pool
+// calculation is smooth; these directional increments make crossing 3/7
+// materially different from an ordinary half/whole point.
+const KEY_ADJ={3:.035,7:.018,6:.010,10:.008,14:.006};
+function keyAdjustment(pool,market){
+  if(!Number.isFinite(pool)||!Number.isFinite(market)) return 0;
+  let adj=0;
+  for(const [ks,w] of Object.entries(KEY_ADJ)){
+    const k=Number(ks);
+    // A more-positive HOME pool line is better for HOME; a more-negative one
+    // is better for AWAY. Apply the adjustment when the move reaches/crosses
+    // either +key or -key (e.g. +3 market to +2.5 pool benefits AWAY).
+    for(const level of [k,-k]){
+      const lo=Math.min(pool,market), hi=Math.max(pool,market);
+      if(lo < level && hi >= level) adj += Math.sign(pool-market)*w;
+    }
+  }
+  return adj;
+}
 function metrics(g){
   const poolLine=(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?null:Number(g.pool_spread);
   const liveLine=(g.market_spread===null||g.market_spread===undefined||g.market_spread==="")?null:Number(g.market_spread);
-
-  if(poolLine===null || !Number.isFinite(poolLine)){
-    return {complete:false,homeCover:.5,awayCover:.5,favCover:.5,dogCover:.5,lineEdge:0,key:0,homeFav:false};
-  }
-
+  if(poolLine===null || !Number.isFinite(poolLine)) return {complete:false,homeCover:.5,awayCover:.5,favCover:.5,dogCover:.5,lineEdge:0,key:0,homeFav:false};
   const effectiveLive=(liveLine!==null&&Number.isFinite(liveLine))?liveLine:poolLine;
-  const sigma=13.86;
-  const marketMean=-effectiveLive;
-  const threshold=-poolLine;
+  const sigma=13.86, marketMean=-effectiveLive, threshold=-poolLine;
   let homeCover=1-normcdf((threshold-marketMean)/sigma);
-  homeCover=Math.max(.02,Math.min(.98,homeCover));
-  const awayCover=1-homeCover;
-  const homeFav=poolLine<0;
-  const favCover=homeFav?homeCover:awayCover;
-  const dogCover=1-favCover;
-
-  return {
-    complete:true,
-    homeCover,awayCover,favCover,dogCover,
-    lineEdge:(liveLine!==null&&Number.isFinite(liveLine))?Math.abs(liveLine-poolLine):0,
-    key:(liveLine!==null&&Number.isFinite(liveLine))?keyWeight(poolLine,liveLine):0,
-    homeFav
-  };
+  const kAdj=(liveLine!==null&&Number.isFinite(liveLine))?keyAdjustment(poolLine,liveLine):0;
+  homeCover=Math.max(.02,Math.min(.98,homeCover+kAdj));
+  const awayCover=1-homeCover,homeFav=poolLine<0,favCover=homeFav?homeCover:awayCover,dogCover=1-favCover;
+  return {complete:true,homeCover,awayCover,favCover,dogCover,lineEdge:(liveLine!==null&&Number.isFinite(liveLine))?Math.abs(liveLine-poolLine):0,key:kAdj,homeFav};
 }
-function strategy(){const r=+$("risk").value/100,behind=+$("behind").value,rank=+$("rank").value,pool=+$("pool").value;const chase=Math.min(1,r*.65+Math.min(behind/6,.35)+Math.max(0,(rank/pool)-.5)*.25);return{accuracy:.88-.18*chase,leverage:.05+.22*chase,key:.07+.04*chase,chase}}
+function strategy(){
+  const pool=Math.max(2,+$("pool").value||40), rank=Math.max(1,+$("rank").value||1);
+  const mine=Math.max(0,+$("myScore").value||0), leader=Math.max(mine,+$("leaderScore").value||mine);
+  const deficit=Math.max(0,leader-mine), week=Math.max(1,activeWeek), weeksLeft=Math.max(1,18-week);
+  const deficitPressure=Math.min(1,deficit/Math.max(2,weeksLeft*.35));
+  const rankPressure=Math.max(0,Math.min(1,(rank-1)/(pool-1)-.45)/.55);
+  const latePressure=Math.max(0,(week-9)/9);
+  const chase=Math.min(1,.62*deficitPressure+.23*rankPressure+.15*latePressure);
+  // At chase=0 public can only flip a virtual coin toss. At chase=1 the
+  // model may sacrifice at most 3 percentage points of cover probability.
+  const maxSacrifice=.002+.028*chase;
+  return {chase,maxSacrifice,deficit,weeksLeft};
+}
 function pickGame(g){
   const m=metrics(g);
-  if(!m.complete){
-    return {...m,pickFav:false,team:"ENTER LINE",cover:0,publicPct:0,score:-1,conf:"—",reason:"pool line required"};
-  }
-  const s=strategy(),
-    favPublic=Math.max(.01,Math.min(.99,(Number(g.public_fav)||50)/100)),
-    dogPublic=1-favPublic;
-  const favScore=s.accuracy*m.favCover+s.leverage*(1-favPublic)+s.key*(m.key/3);
-  const dogScore=s.accuracy*m.dogCover+s.leverage*(1-dogPublic)+s.key*(m.key/3);
-  const pickFav=favScore>=dogScore,cover=pickFav?m.favCover:m.dogCover;
-  const publicPct=pickFav?favPublic:dogPublic;
-  const homePick=pickFav?m.homeFav:!m.homeFav;
-  const team=homePick?g.home:g.away;
-  const score=Math.max(favScore,dogScore);
+  if(!m.complete) return {...m,pickFav:false,team:"ENTER LINE",cover:0,publicPct:0,score:-1,conf:"—",reason:"pool line required"};
+  const st=strategy(),favPublic=Math.max(.01,Math.min(.99,(Number(g.public_fav)||50)/100)),dogPublic=1-favPublic;
+  let pickFav=m.favCover>=m.dogCover;
+  const probGap=Math.abs(m.favCover-m.dogCover);
+  const lessPopularFav=favPublic<dogPublic;
+  // Public ownership is permitted to flip the accuracy pick only inside a
+  // standings-dependent probability budget. This prevents contrarianism
+  // from overwhelming a real market edge.
+  if(probGap<=st.maxSacrifice && favPublic!==dogPublic) pickFav=lessPopularFav;
+  const cover=pickFav?m.favCover:m.dogCover,publicPct=pickFav?favPublic:dogPublic;
+  const homePick=pickFav?m.homeFav:!m.homeFav,team=homePick?g.home:g.away;
+  // Ranking is confidence-first; tiny leverage bonus only separates close games.
+  const score=cover + st.chase*Math.max(0,.5-publicPct)*.01;
   let conf=cover>=.58?"A":cover>=.55?"B+":cover>=.53?"B":cover>=.515?"C+":"C";
   let reason=[];
   if(m.lineEdge>=1.5)reason.push("stale line");
-  if(m.key>=1.4)reason.push("key-number move");
-  if(publicPct<.4&&cover>.50)reason.push("leverage");
-  if(!reason.length)reason.push(g.market_spread==null?"pool line only":"market lean");
+  if(Math.abs(m.key)>=.018)reason.push("key-number edge");
+  if((pickFav!==(m.favCover>=m.dogCover)))reason.push("standings leverage");
+  if(!reason.length)reason.push(g.market_spread==null?"pool line only":"market probability");
   return {...m,pickFav,team,cover,publicPct,score,conf,reason:reason.join(", ")};
 }
 function render(){
@@ -177,7 +190,7 @@ function render(){
     if(x.complete) expected+=x.cover;
     if(x.cover>=.55)strong++;
     if(x.publicPct<.4)contra++;
-    if(x.key>=1.4)keys++;
+    if(Math.abs(x.key)>=.018)keys++;
     if(x.complete) ranked.push({g,x});
     const poolDetail=(g.pool_spread===null||g.pool_spread===undefined||g.pool_spread==="")?"Not entered":`${g.away} ${sgn(-g.pool_spread)} / ${g.home} ${sgn(g.pool_spread)}`;
     const liveDetail=g.market_detail||(g.market_spread==null?"—":`${g.away} ${sgn(-g.market_spread)} / ${g.home} ${sgn(g.market_spread)}`);
@@ -190,7 +203,7 @@ function render(){
       <td><input type="number" step=".5" data-i="${i}" data-k="total" value="${g.total??""}"></td>
       <td><input type="number" step="1" data-i="${i}" data-k="public_fav" value="${g.public_fav}"></td>
       <td>${(x.favCover*100).toFixed(1)}%</td><td>${(x.dogCover*100).toFixed(1)}%</td>
-      <td>${x.key.toFixed(1)}</td><td><b>${x.team}</b></td><td>${x.conf}</td><td>${(x.score*100).toFixed(1)}</td>
+      <td>${(x.key*100).toFixed(1)+'pp'}</td><td><b>${x.team}</b></td><td>${x.conf}</td><td>${(x.score*100).toFixed(1)}</td>
     </tr>`)
   });
   tb.querySelectorAll("input").forEach(inp=>inp.onchange=e=>{
@@ -201,12 +214,9 @@ function render(){
   $("expCorrect").textContent=expected.toFixed(1);
   $("strongEdges").textContent=strong;$("contraCount").textContent=contra;$("keyCount").textContent=keys;
   const st=strategy();
-  $("modeName").textContent=st.chase<.3?"Accuracy":st.chase<.62?"Balanced":"Chasing";
-  $("strategyRead").textContent=st.chase<.3
-    ?"Prioritize expected correctness; use contrarianism only as a tiebreaker."
-    :st.chase<.62
-    ?"Market edge dominates, with moderate leverage on close decisions."
-    :"Selective variance mode: more willing to oppose concentrated public picks when the probability cost is small.";
+  $("modeName").textContent=st.chase<.25?"Accuracy":st.chase<.6?"Selective":"Chasing";
+  $("riskVal").textContent=`Auto · max sacrifice ${(st.maxSacrifice*100).toFixed(1)}pp`;
+  $("strategyRead").textContent=`${st.deficit} behind with ${st.weeksLeft} regular-season weeks remaining. Public leverage may change a pick only when the estimated cover-probability cost is ≤ ${(st.maxSacrifice*100).toFixed(1)} percentage points.`;
   ranked.sort((a,b)=>b.x.score-a.x.score);
   $("ranked").innerHTML=ranked.map((o,i)=>`<tr>
     <td>${i+1}</td><td>${o.g.away} @ ${o.g.home}</td><td><b>${o.x.team}</b></td>
@@ -250,7 +260,7 @@ async function refreshSlate(withOdds=true){
 async function refreshOdds(){
   $("oddsMsg").textContent="Fetching verified NFL spreads…";
   try{
-    const r=await fetch("/api/odds",{cache:"no-store"});
+    const r=await fetch("/api/odds");
     if(!r.ok)throw new Error(await r.text());
     const obj=await r.json(),live=obj.games||[];
     let n=0,rejected=0;
@@ -263,23 +273,10 @@ async function refreshOdds(){
       n++;
     }
     savePoolLines();
-    const stamp=obj.updatedAt?new Date(obj.updatedAt).toLocaleTimeString():"unknown";
-    localStorage.setItem("ats_last_good_live_odds_2026",JSON.stringify({updatedAt:obj.updatedAt,source:obj.source,games:obj.games}));
-    $("oddsMsg").textContent=`REFRESHED ${stamp} via ${obj.source||"live source"} · matched ${n}/${games.length} Week ${activeWeek} games${rejected?` · rejected ${rejected}`:""} · ${obj.validCount??"?"} valid spreads${obj.remaining?` · ${obj.remaining} credits remaining`:""}. Pool Lines unchanged.`;
+    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. Missing lines stay blank; Pool Lines unchanged.`;
     render();
   }catch(e){
-    let restored=0,age="";
-    try{
-      const snap=JSON.parse(localStorage.getItem("ats_last_good_live_odds_2026")||"null");
-      if(snap?.games?.length){
-        for(const g of games){
-          const x=snap.games.find(v=>v.home===g.home&&v.away===g.away&&v.valid);
-          if(x){g.market_spread=x.homeSpread;g.market_detail=`cached ${snap.source||"live source"} · ${x.bookDetail||""}`;restored++;}
-        }
-        age=snap.updatedAt?new Date(snap.updatedAt).toLocaleString():"unknown time";render();
-      }
-    }catch(_){}
-    $("oddsMsg").textContent=restored?`LIVE REFRESH FAILED · preserved ${restored} cached spreads from ${age}. Pool Lines unchanged.`:`LIVE REFRESH FAILED · no cached market snapshot available. Pool Lines unchanged.`;
+    $("oddsMsg").textContent="Verified live spread refresh unavailable; manual values remain.";
     console.error(e)
   }
 }
@@ -291,5 +288,5 @@ $("week").onchange=async()=>{
   localStorage.setItem("ats_pool_active_week",activeWeek);
   await refreshSlate(false);
 };
-$("risk").oninput=()=>{$("riskVal").textContent=$("risk").value+" / 100";render()};$("pool").onchange=render;$("rank").onchange=render;$("behind").onchange=render;$("opt").onclick=render;$("refreshSlate").onclick=()=>refreshSlate(true);$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{localStorage.removeItem(seasonWeekKey(activeWeek));refreshSlate(false)};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;$("riskVal").textContent=$("risk").value+" / 100";refreshSlate(false);
+$("pool").onchange=render;$("rank").onchange=render;$("myScore").onchange=render;$("leaderScore").onchange=render;$("opt").onclick=render;$("refreshSlate").onclick=()=>refreshSlate(true);$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{localStorage.removeItem(seasonWeekKey(activeWeek));refreshSlate(false)};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;refreshSlate(false);
 </script></body></html>
