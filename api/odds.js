@@ -73,6 +73,11 @@ export default async function handler(req,res){
   if(!apiKey){
     return res.status(503).json({error:"SPORTSGAMEODDS_API_KEY is not configured."});
   }
+  // Validate without logging or exposing the secret.
+  const invalidIndex=[...apiKey].findIndex(ch=>ch.codePointAt(0)>255 || /[\r\n]/.test(ch));
+  if(invalidIndex>=0){
+    return res.status(503).json({error:"Invalid SportsGameOdds API key in Vercel",detail:"The configured key contains a non-HTTP-header character.",invalidCharacterIndex:invalidIndex,invalidCharacterCodePoint:[...apiKey][invalidIndex].codePointAt(0),hint:"Replace the Production SPORTSGAMEODDS_API_KEY with the raw key, not masked bullets; redeploy."});
+  }
 
   try{
     const url=new URL("https://api.sportsgameodds.com/v2/events");
