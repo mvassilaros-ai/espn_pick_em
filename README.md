@@ -1,13 +1,8 @@
-# ATS Pool Optimizer V11
+# ATS V12 — rate-limit resilience
 
-Deploy these files to the existing ATS GitHub/Vercel project, replacing V10. Keep the SPORTSGAMEODDS_API_KEY environment variable configured in Vercel.
+- `/api/odds` now uses Vercel shared CDN caching (15 minutes; stale-while-revalidate 1 hour) to avoid a provider call per visitor or click.
+- Frontend no longer adds a cache-busting timestamp or forces `no-store`.
+- The last successful verified response is saved in browser localStorage and reused with a prominent STALE warning when provider returns 429 or other errors.
+- Frozen pool lines and V11 scoring (10 points per correct pick) are unchanged.
 
-Changes:
-- Automatically refresh live odds on startup and week changes; refresh button bypasses browser/CDN cache.
-- Display actual HTTP/API errors in the app rather than a generic failure.
-- API no longer excludes all events flagged started; live events are matched against the selected slate.
-- 10 pool points per correct pick. Enter actual cumulative point totals; the deficit is converted to equivalent picks (points / 10) for automatic risk strategy.
-- Expected pool points displayed on dashboard.
-- Frozen pool lines remain in existing per-week browser storage.
-
-Note: Actual API response could not be tested without the user's Vercel environment and key. If the app reports 0 verified lines, send the displayed diagnostic; the SportsGameOdds market shape may have changed.
+**Limitations:** This cannot overcome an exhausted SportsGameOdds quota on the first request or guarantee CDN persistence across deployments/regions. Cached spreads can be stale. Verify API key, quota, and plan limits if 429 persists. Avoid using stale lines as current lines for final picks.
