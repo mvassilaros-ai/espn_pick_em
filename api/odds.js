@@ -78,7 +78,8 @@ export default async function handler(req,res){
     const url=new URL("https://api.sportsgameodds.com/v2/events");
     url.searchParams.set("leagueID","NFL");
     url.searchParams.set("oddsAvailable","true");
-    url.searchParams.set("started","false");
+    // Include started events: some providers flag games as started before kickoff;
+    // match by schedule on client and reject expired markets when necessary.
     url.searchParams.set("limit","100");
     // Deliberately do not filter by oddID. We inspect actual returned markets.
 
@@ -159,7 +160,7 @@ export default async function handler(req,res){
       });
     }
 
-    res.setHeader("Cache-Control","s-maxage=120, stale-while-revalidate=300");
+    res.setHeader("Cache-Control","no-store, max-age=0");
     return res.status(200).json({
       games,
       eventCount:events.length,
