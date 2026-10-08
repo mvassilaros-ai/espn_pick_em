@@ -160,7 +160,8 @@ export default async function handler(req,res){
       });
     }
 
-    res.setHeader("Cache-Control","no-store, max-age=0");
+    // Shared Vercel CDN cache; do not consume a provider request per browser refresh.
+    res.setHeader("Cache-Control","public, s-maxage=900, stale-while-revalidate=3600");
     return res.status(200).json({
       games,
       eventCount:events.length,
