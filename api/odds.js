@@ -1,3 +1,7 @@
+// In-process request coalescing and cooldown; CDN caching handles shared successful responses.
+let pendingRequest=null;
+let blockedUntil=0;
+let lastGood=null;
 function normTeam(t){
   const m={LAR:"LA",WSH:"WAS",OAK:"LV",JAC:"JAX"};
   t=String(t||"").toUpperCase();
@@ -80,6 +84,11 @@ export default async function handler(req,res){
   }
 
   try{
+    if(Date.now()<blockedUntil){
+      res.setHeader("Cache-Control","public, s-maxage=60");
+      if(lastGood) return res.status(200).json({...lastGood,stale:true,warning:"Provider rate limited; last verified odds shown"});
+      return res.status(503).json({error:"SportsGameOdds rate limit cooldown",retryAfterSeconds:Math.ceil((blockedUntil-Date.now())/1000)});
+    }
     const url=new URL("https://api.sportsgameodds.com/v2/events");
     url.searchParams.set("leagueID","NFL");
     url.searchParams.set("oddsAvailable","true");
@@ -88,12 +97,23 @@ export default async function handler(req,res){
     url.searchParams.set("limit","100");
     // Deliberately do not filter by oddID. We inspect actual returned markets.
 
-    const r=await fetch(url,{headers:{"x-api-key":apiKey}});
-    if(!r.ok){
-      return res.status(r.status).send(await r.text());
+    if(!pendingRequest){
+      pendingRequest=fetch(url,{headers:{"x-api-key":apiKey.trim()}}).then(async r=>{
+        if(!r.ok){
+          const retryAfter=Number(r.headers.get("retry-after"));
+          if(r.status===429) blockedUntil=Date.now()+Math.max(60000,Math.min(3600000,(Number.isFinite(retryAfter)&&retryAfter>0?retryAfter:300)*1000));
+          const error=new Error(r.status===429?"Provider rate limit exceeded":"Provider HTTP "+r.status);
+          error.status=r.status;
+          throw error;
+        }
+        return r.json();
+      }).finally(()=>{pendingRequest=null});
     }
-
-    const obj=await r.json();
+    let obj;
+    try{obj=await pendingRequest}catch(e){
+      if(lastGood){res.setHeader("Cache-Control","public, s-maxage=60");return res.status(200).json({...lastGood,stale:true,warning:String(e.message)});}
+      return res.status(e.status===429?503:(e.status||502)).json({error:e.message,retryAfterSeconds:e.status===429?Math.ceil((blockedUntil-Date.now())/1000):undefined});
+    }
     const events=obj.data||obj.events||[];
     const games=[];
 
@@ -167,12 +187,9 @@ export default async function handler(req,res){
 
     // Shared Vercel CDN cache; do not consume a provider request per browser refresh.
     res.setHeader("Cache-Control","public, s-maxage=900, stale-while-revalidate=3600");
-    return res.status(200).json({
-      games,
-      eventCount:events.length,
-      validCount:games.filter(g=>g.valid).length,
-      updatedAt:new Date().toISOString()
-    });
+    const payload={games,eventCount:events.length,validCount:games.filter(g=>g.valid).length,updatedAt:new Date().toISOString()};
+    if(payload.validCount>0) lastGood=payload;
+    return res.status(200).json(payload);
 
   }catch(err){
     return res.status(500).json({
