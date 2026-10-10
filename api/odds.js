@@ -72,6 +72,49 @@ function pairedBookLines(homeOdd,awayOdd){
   }
   return pairs;
 }
+
+const NFL_TEAMS={"Arizona Cardinals":"ARI","Atlanta Falcons":"ATL","Baltimore Ravens":"BAL","Buffalo Bills":"BUF","Carolina Panthers":"CAR","Chicago Bears":"CHI","Cincinnati Bengals":"CIN","Cleveland Browns":"CLE","Dallas Cowboys":"DAL","Denver Broncos":"DEN","Detroit Lions":"DET","Green Bay Packers":"GB","Houston Texans":"HOU","Indianapolis Colts":"IND","Jacksonville Jaguars":"JAX","Kansas City Chiefs":"KC","Las Vegas Raiders":"LV","Los Angeles Chargers":"LAC","Los Angeles Rams":"LA","Miami Dolphins":"MIA","Minnesota Vikings":"MIN","New England Patriots":"NE","New Orleans Saints":"NO","New York Giants":"NYG","New York Jets":"NYJ","Philadelphia Eagles":"PHI","Pittsburgh Steelers":"PIT","San Francisco 49ers":"SF","Seattle Seahawks":"SEA","Tampa Bay Buccaneers":"TB","Tennessee Titans":"TEN","Washington Commanders":"WAS"};
+let backupPending=null,backupCooldown=0;
+async function backupOdds(){
+ const key=process.env.THE_ODDS_API_KEY;
+ if(!key)throw Error("Backup key not configured");
+ if(Date.now()<backupCooldown)throw Error("Backup provider cooldown");
+ if(!backupPending)backupPending=(async()=>{
+  const u=new URL("https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds");
+  u.searchParams.set("apiKey",key.trim());u.searchParams.set("regions","us");
+  u.searchParams.set("markets","spreads");u.searchParams.set("oddsFormat","american");
+  const r=await fetch(u,{cache:"no-store"});
+  if(!r.ok){backupCooldown=Date.now()+(r.status===429?300000:60000);throw Error("Backup HTTP "+r.status);}
+  const data=await r.json();
+  const games=(Array.isArray(data)?data:[]).map(ev=>{
+   const home=NFL_TEAMS[ev.home_team],away=NFL_TEAMS[ev.away_team];
+   const pairs=[];
+   for(const b of ev.bookmakers||[]){
+    const market=(b.markets||[]).find(m=>m.key==="spreads");
+    const h=(market?.outcomes||[]).find(x=>x.name===ev.home_team);
+    const a=(market?.outcomes||[]).find(x=>x.name===ev.away_team);
+    const hs=strictNumber(h?.point),as=strictNumber(a?.point);
+    if(hs!==null&&as!==null&&Math.abs(hs+as)<=0.26)pairs.push({book:b.key,homeSpread:hs,awaySpread:as});
+   }
+   const hs=median(pairs.map(p=>p.homeSpread));
+   return {eventID:ev.id,startTime:ev.commence_time,home,away,valid:!!home&&!!away&&hs!==null,
+     homeSpread:hs,awaySpread:hs===null?null:-hs,pairedBooks:pairs.length,
+     method:"backup bookmaker median",bookDetail:pairs.map(p=>p.book+":"+p.homeSpread).join(" | "),
+     warning:hs===null?"No valid paired spreads":""};
+  }).filter(g=>g.home&&g.away);
+  const payload={games,eventCount:games.length,validCount:games.filter(g=>g.valid).length,
+    updatedAt:new Date().toISOString(),provider:"The Odds API"};
+  if(payload.validCount===0)throw Error("Backup returned no valid spreads");
+  return payload;
+ })().finally(()=>backupPending=null);
+ return backupPending;
+}
+async function backupResponse(res,reason){
+ try{const payload=await backupOdds();lastGood=payload;res.setHeader("Cache-Control","public, s-maxage=900, stale-while-revalidate=3600");return res.status(200).json({...payload,warning:reason});}
+ catch(e){if(lastGood){res.setHeader("Cache-Control","public, s-maxage=60");return res.status(200).json({...lastGood,stale:true,warning:reason+"; backup: "+e.message});}
+ return res.status(503).json({error:reason,backupError:e.message});}
+}
+
 export default async function handler(req,res){
   const apiKey=process.env.SPORTSGAMEODDS_API_KEY;
   if(!apiKey){
@@ -87,7 +130,7 @@ export default async function handler(req,res){
     if(Date.now()<blockedUntil){
       res.setHeader("Cache-Control","public, s-maxage=60");
       if(lastGood) return res.status(200).json({...lastGood,stale:true,warning:"Provider rate limited; last verified odds shown"});
-      return res.status(503).json({error:"SportsGameOdds rate limit cooldown",retryAfterSeconds:Math.ceil((blockedUntil-Date.now())/1000)});
+      return backupResponse(res,"SportsGameOdds rate limit cooldown");
     }
     const url=new URL("https://api.sportsgameodds.com/v2/events");
     url.searchParams.set("leagueID","NFL");
@@ -124,7 +167,7 @@ export default async function handler(req,res){
     let obj;
     try{obj=await pendingRequest}catch(e){
       if(lastGood){res.setHeader("Cache-Control","public, s-maxage=60");return res.status(200).json({...lastGood,stale:true,warning:String(e.message)});}
-      return res.status(e.status===429?503:(e.status||502)).json({error:e.message,retryAfterSeconds:e.status===429?Math.ceil((blockedUntil-Date.now())/1000):undefined});
+      return backupResponse(res,e.message);
     }
     const events=obj.data||obj.events||[];
     const games=[];
