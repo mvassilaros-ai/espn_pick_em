@@ -94,7 +94,19 @@ export default async function handler(req,res){
     url.searchParams.set("oddsAvailable","true");
     // Include started events: some providers flag games as started before kickoff;
     // match by schedule on client and reject expired markets when necessary.
-    url.searchParams.set("limit","100");
+    // Limit to the current NFL slate rather than every open NFL event.
+    // UTC window covers the current week and the next few days around rollover.
+    const now=new Date();
+    const day=now.getUTCDay();
+    const mondayOffset=(day+6)%7;
+    const monday=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-mondayOffset));
+    const end=new Date(monday.getTime()+8*86400000);
+    url.searchParams.set("startsAfter",monday.toISOString());
+    url.searchParams.set("startsBefore",end.toISOString());
+    url.searchParams.set("started","false");
+    url.searchParams.set("type","match");
+    url.searchParams.set("oddID","points-home-game-sp-home,points-away-game-sp-away");
+    url.searchParams.set("limit","25");
     // Deliberately do not filter by oddID. We inspect actual returned markets.
 
     if(!pendingRequest){
