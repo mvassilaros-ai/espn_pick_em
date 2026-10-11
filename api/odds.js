@@ -22,6 +22,32 @@ function median(arr){
   const m=Math.floor(a.length/2);
   return a.length%2?a[m]:(a[m-1]+a[m])/2;
 }
+
+const BOOK_WEIGHTS={
+ pinnacle:5,pinnacleus:5,circa:5,bookmaker:5,bookmaker_eu:5,
+ draftkings:2,fanduel:2,betmgm:2,caesars:2,williamhill_us:2,
+ bet365:2,espnbet:2,bet_rivers:2,betrivers:2
+};
+function bookWeight(name){
+ const k=String(name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+ return BOOK_WEIGHTS[k]||0;
+}
+function trustedConsensus(pairs){
+ const trusted=pairs.map(p=>({...p,weight:bookWeight(p.book)})).filter(p=>p.weight>0&&Number.isFinite(p.homeSpread));
+ const distinct=new Set(trusted.map(p=>String(p.book).toLowerCase()));
+ if(distinct.size<2)return {valid:false,warning:"Fewer than two approved sportsbooks",used:trusted};
+ const sharp=trusted.filter(p=>p.weight>=5);
+ const reference=median((sharp.length>=2?sharp:trusted).map(p=>p.homeSpread));
+ const inliers=trusted.filter(p=>Math.abs(p.homeSpread-reference)<=1.5);
+ if(new Set(inliers.map(p=>String(p.book).toLowerCase())).size<2)return {valid:false,warning:"Approved sportsbook lines disagree",used:trusted};
+ const sharpInliers=inliers.filter(p=>p.weight>=5);
+ if(sharpInliers.length>=2&&Math.max(...sharpInliers.map(p=>p.homeSpread))-Math.min(...sharpInliers.map(p=>p.homeSpread))>1)
+  return {valid:false,warning:"Sharp sportsbooks disagree by over 1 point",used:inliers};
+ const weightTotal=inliers.reduce((s,p)=>s+p.weight,0);
+ const spread=Math.round(inliers.reduce((s,p)=>s+p.homeSpread*p.weight,0)/weightTotal*4)/4;
+ return {valid:true,homeSpread:spread,awaySpread:-spread,used:inliers,warning:""};
+}
+
 function spreadRecords(ev){
   const out={home:null,away:null};
   for(const [key,o] of Object.entries(ev.odds||{})){
@@ -94,13 +120,13 @@ async function backupOdds(){
     const h=(market?.outcomes||[]).find(x=>x.name===ev.home_team);
     const a=(market?.outcomes||[]).find(x=>x.name===ev.away_team);
     const hs=strictNumber(h?.point),as=strictNumber(a?.point);
-    if(hs!==null&&as!==null&&Math.abs(hs+as)<=0.26)pairs.push({book:b.key,homeSpread:hs,awaySpread:as});
+    if(hs!==null&&as!==null&&Math.abs(hs+as)<=0.26 && (!market.last_update || Date.now()-Date.parse(market.last_update)<3600000))pairs.push({book:b.key,homeSpread:hs,awaySpread:as});
    }
-   const hs=median(pairs.map(p=>p.homeSpread));
-   return {eventID:ev.id,startTime:ev.commence_time,home,away,valid:!!home&&!!away&&hs!==null,
-     homeSpread:hs,awaySpread:hs===null?null:-hs,pairedBooks:pairs.length,
-     method:"backup bookmaker median",bookDetail:pairs.map(p=>p.book+":"+p.homeSpread).join(" | "),
-     warning:hs===null?"No valid paired spreads":""};
+   const consensus=trustedConsensus(pairs);
+   return {eventID:ev.id,startTime:ev.commence_time,home,away,valid:!!home&&!!away&&consensus.valid,
+     homeSpread:consensus.valid?consensus.homeSpread:null,awaySpread:consensus.valid?consensus.awaySpread:null,pairedBooks:pairs.length,
+     method:"weighted approved sportsbooks",bookDetail:consensus.used.map(p=>p.book+":"+p.homeSpread).join(" | "),
+     warning:consensus.warning};
   }).filter(g=>g.home&&g.away);
   const payload={games,eventCount:games.length,validCount:games.filter(g=>g.valid).length,
     updatedAt:new Date().toISOString(),provider:"The Odds API"};
@@ -192,40 +218,15 @@ export default async function handler(req,res){
 
       let homeSpread=null,awaySpread=null,method="",bookDetail="",valid=false,warning="";
 
-      if(pairs.length){
-        homeSpread=median(pairs.map(x=>x.homeSpread));
-        awaySpread=median(pairs.map(x=>x.awaySpread));
-
-        // Median of mirrored same-book lines should also mirror.
-        if(Math.abs(homeSpread+awaySpread)<=0.26){
-          valid=true;
-          method=`median paired books (${pairs.length})`;
-          bookDetail=pairs.slice(0,5).map(x=>{
-            const as=x.awaySpread>0?`+${x.awaySpread}`:`${x.awaySpread}`;
-            const hs=x.homeSpread>0?`+${x.homeSpread}`:`${x.homeSpread}`;
-            return `${x.book}:${away} ${as}/${home} ${hs}`;
-          }).join(" | ");
-        } else {
-          warning=`median pair failed mirror check: ${away} ${awaySpread}, ${home} ${homeSpread}`;
-        }
-      }
-
-      // Fallback to SportsGameOdds fairSpread if paired book data unavailable.
-      if(!valid){
-        const hs=strictNumber(ho.fairSpread);
-        const as=strictNumber(ao.fairSpread);
-        if(hs!==null&&as!==null&&Math.abs(hs+as)<=0.26 &&
-           !(hs!==0&&as!==0&&Math.sign(hs)===Math.sign(as))){
-          homeSpread=hs;
-          awaySpread=as;
-          valid=true;
-          method="fallback fairSpread";
-          warning="";
-        }
-      }
-
-      if(!valid && !warning){
-        warning=`no valid paired spread data (${pairs.length} paired books)`;
+      const consensus=trustedConsensus(pairs);
+      if(consensus.valid){
+        homeSpread=consensus.homeSpread;
+        awaySpread=consensus.awaySpread;
+        valid=true;
+        method="weighted approved sportsbooks";
+        bookDetail=consensus.used.map(p=>p.book+":"+p.homeSpread).join(" | ");
+      }else{
+        warning=consensus.warning;
       }
 
       games.push({
