@@ -203,12 +203,16 @@ export default async function handler(req,res){
       const away=teamAbbr(ev.teams?.away);
       if(!home||!away) continue;
 
+      const over=ev.odds?.["points-all-game-ou-over"];
+      const under=ev.odds?.["points-all-game-ou-under"];
+      const totalCandidates=[over,under].filter(Boolean).flatMap(o=>Object.values(o.byBookmaker||{}).filter(b=>b.available!==false).map(b=>strictNumber(b.overUnder)).filter(v=>v!==null&&v>=15&&v<=90));
+      const marketTotal=median(totalCandidates)||strictNumber(over?.bookOverUnder)||strictNumber(over?.fairOverUnder)||strictNumber(under?.bookOverUnder)||strictNumber(under?.fairOverUnder);
       const recs=spreadRecords(ev);
       const ho=recs.home, ao=recs.away;
 
       if(!ho||!ao){
         games.push({
-          home,away,valid:false,
+          home,away,marketTotal,valid:false,
           warning:"full-game home/away spread records not found"
         });
         continue;
@@ -232,7 +236,7 @@ export default async function handler(req,res){
       games.push({
         eventID:ev.eventID,
         startTime:ev.startTime,
-        home,away,valid,warning,method,bookDetail,
+        home,away,marketTotal,valid,warning,method,bookDetail,
         homeSpread:valid?homeSpread:null,
         awaySpread:valid?awaySpread:null,
         pairedBooks:pairs.length,
