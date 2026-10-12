@@ -227,7 +227,7 @@ function render(){
 }
 function tieBreaker(){
   const last=games.filter(g=>g.gameday&&g.gametime).sort((a,b)=>(a.gameday+"T"+a.gametime).localeCompare(b.gameday+"T"+b.gametime)).at(-1);
-  const total=last&&Number.isFinite(last.total)?last.total:null;
+  const total=last&&Number.isFinite(last.marketTotal)?last.marketTotal:(last&&Number.isFinite(last.total)?last.total:null);
   const input=$("tbTotal");
   const key=last?`ats_tb_${activeWeek}_${last.away}_${last.home}`:null;
   if(key&&input.dataset.game!==key){
@@ -235,7 +235,7 @@ function tieBreaker(){
     input.value=total??localStorage.getItem(key)??"";
   }
   if(last){
-    $("tbGame").textContent=`Final game: ${last.away} @ ${last.home} (${last.gameday} ${last.gametime}) · market total`;
+    $("tbGame").textContent=`Final game: ${last.away} @ ${last.home} (${last.gameday} ${last.gametime}) · ${Number.isFinite(last.marketTotal)?"Live market O/U":"Enter market total"}`;
     if(total!==null&&document.activeElement!==input)input.value=total;
   }else $("tbGame").textContent="Last game of week · enter market total";
   const value=input.value.trim()===""?null:Number(input.value);
@@ -289,7 +289,7 @@ async function refreshOdds(){
       const x=live.find(v=>v.home===g.home&&v.away===g.away);
       if(!x) continue;
       if(!x.valid){rejected++;continue;}
-      g.market_spread=x.homeSpread;
+      if(Number.isFinite(Number(x.marketTotal))&&x.marketTotal!==null){g.marketTotal=Number(x.marketTotal);}\n      g.market_spread=x.homeSpread;
       g.market_detail=`${x.away} ${sgn(x.awaySpread)} / ${x.home} ${sgn(x.homeSpread)} · ${x.method}${x.bookDetail?` · ${x.bookDetail}`:""}`;
       n++;
     }
@@ -302,7 +302,7 @@ async function refreshOdds(){
       try{
         const obj=JSON.parse(cached);let n=0;
         for(const g of games){const x=(obj.games||[]).find(v=>v.home===g.home&&v.away===g.away&&v.valid);
-          if(x){g.market_spread=x.homeSpread;g.market_detail=`CACHED ${obj.updatedAt||"unknown"} · ${x.method}`;n++;}}
+          if(x){if(x.marketTotal!==null&&Number.isFinite(Number(x.marketTotal)))g.marketTotal=Number(x.marketTotal);g.market_spread=x.homeSpread;g.market_detail=`CACHED ${obj.updatedAt||"unknown"} · ${x.method}`;n++;}}
         $("oddsMsg").textContent=`Odds provider unavailable (${String(e.message||e).slice(0,90)}). Using ${n} previously verified spreads from ${obj.updatedAt||"unknown"}. These are STALE; pool lines preserved.`;
         render();
       }catch(_){$("oddsMsg").textContent=`Live odds error: ${String(e.message||e).slice(0,250)}. Pool lines preserved.`;}
