@@ -41,7 +41,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 7px;b
 <div class="card"><div class="big">How V11 thinks</div><div class="tiny" style="margin-top:8px"><b>1. Cover probability:</b> current consensus market versus the frozen pool line.<br><br><b>2. NFL scoring geometry:</b> directional adjustments when the pool line crosses 3, 7, 6, 10 or 14; 3 and 7 matter most.<br><br><b>3. Accuracy first:</b> the higher cover probability wins unless the sides are close enough for standings-aware leverage.<br><br><b>4. Public leverage:</b> can break close decisions only; the allowable probability sacrifice grows automatically when late and behind.</div></div>
 </div>
 
-<div class="card" style="margin-top:14px"><div class="big">Tie-break helper</div><div class="grid g3" style="margin-top:10px"><div><div class="tiny">Market total</div><input id="tbTotal" type="number" step=".5" value="45.5"></div><div><div class="tiny">Lean adjustment</div><input id="tbAdj" type="number" step=".5" value="0"></div><div><div class="tiny">Suggested total points</div><div id="tbPick" class="v">45</div></div></div></div>
+<div class="card" style="margin-top:14px"><div class="big">Tie-break helper</div><div class="grid g3" style="margin-top:10px"><div><div class="tiny" id="tbGame">Last game of week · enter market total</div><input id="tbTotal" type="number" step=".5" value="45.5"></div><div><div class="tiny">Lean adjustment</div><input id="tbAdj" type="number" step=".5" value="0"></div><div><div class="tiny">Suggested total points</div><div id="tbPick" class="v">45</div></div></div></div>
 </div>
 
 <script>
@@ -225,7 +225,25 @@ function render(){
     <td>${o.x.lineEdge.toFixed(1)}</td><td class="tiny">${o.x.reason}</td></tr>`).join("");
   tieBreaker()
 }
-function tieBreaker(){const x=+$("tbTotal").value + +$("tbAdj").value;$("tbPick").textContent=Math.max(0,Math.floor(x))}
+function tieBreaker(){
+  const last=games.filter(g=>g.gameday&&g.gametime).sort((a,b)=>(a.gameday+"T"+a.gametime).localeCompare(b.gameday+"T"+b.gametime)).at(-1);
+  const total=last&&Number.isFinite(last.total)?last.total:null;
+  const input=$("tbTotal");
+  const key=last?`ats_tb_${activeWeek}_${last.away}_${last.home}`:null;
+  if(key&&input.dataset.game!==key){
+    input.dataset.game=key;
+    input.value=total??localStorage.getItem(key)??"";
+  }
+  if(last){
+    $("tbGame").textContent=`Final game: ${last.away} @ ${last.home} (${last.gameday} ${last.gametime}) · market total`;
+    if(total!==null&&document.activeElement!==input)input.value=total;
+  }else $("tbGame").textContent="Last game of week · enter market total";
+  const value=input.value.trim()===""?null:Number(input.value);
+  if(value===null||!Number.isFinite(value)){$("tbPick").textContent="Enter total";return;}
+  const adj=Number($("tbAdj").value)||0;
+  $("tbPick").textContent=String(Math.max(0,Math.round(value+adj)));
+}
+function saveTieBreaker(){const key=$("tbTotal").dataset.game;if(key)localStorage.setItem(key,$("tbTotal").value);tieBreaker()}
 
 async function refreshSlate(withOdds=true){
   $("oddsMsg").textContent=`Loading actual Week ${activeWeek} NFL schedule…`;
@@ -240,6 +258,8 @@ async function refreshSlate(withOdds=true){
       return {
         away:g.away,
         home:g.home,
+        gameday:g.gameday,
+        gametime:g.gametime,
         pool_spread:(s.pool_spread===null||s.pool_spread===undefined||s.pool_spread==="")?null:Number(s.pool_spread),
         market_spread:null,
         total:(s.total===null||s.total===undefined||s.total==="")?null:Number(s.total),
@@ -298,5 +318,5 @@ $("week").onchange=async()=>{
   localStorage.setItem("ats_pool_active_week",activeWeek);
   await refreshSlate(true);
 };
-$("pool").onchange=render;$("rank").onchange=render;$("myScore").onchange=render;$("leaderScore").onchange=render;$("opt").onclick=render;$("refreshSlate").onclick=()=>refreshSlate(true);$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{localStorage.removeItem(seasonWeekKey(activeWeek));refreshSlate(false)};$("tbTotal").oninput=tieBreaker;$("tbAdj").oninput=tieBreaker;refreshSlate(true);
+$("pool").onchange=render;$("rank").onchange=render;$("myScore").onchange=render;$("leaderScore").onchange=render;$("opt").onclick=render;$("refreshSlate").onclick=()=>refreshSlate(true);$("refreshOdds").onclick=refreshOdds;$("reset").onclick=()=>{localStorage.removeItem(seasonWeekKey(activeWeek));refreshSlate(false)};$("tbTotal").oninput=saveTieBreaker;$("tbAdj").oninput=tieBreaker;refreshSlate(true);
 </script></body></html>
