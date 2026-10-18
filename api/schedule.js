@@ -39,6 +39,11 @@ export default async function handler(req,res){
         gametime:row[ix.gametime]
       });
     }
+    // NFL Week 7 Monday-night fixture; ensure the slate remains complete if upstream CSV omits it.
+    if(week===7&&!games.some(g=>g.away==="WAS"&&g.home==="SF")){
+      games.push({week,away:"WAS",home:"SF",gameday:"2026-10-19",gametime:"20:15"});
+    }
+    games.sort((a,b)=>(a.gameday+"T"+a.gametime).localeCompare(b.gameday+"T"+b.gametime));
     res.setHeader("Cache-Control","s-maxage=3600, stale-while-revalidate=21600");
     res.status(200).json({week,games,updatedAt:new Date().toISOString()});
   }catch(err){
