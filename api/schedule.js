@@ -39,6 +39,10 @@ export default async function handler(req,res){
         gametime:row[ix.gametime]
       });
     }
+    // ESPN pool Week 6 uses WAS @ SF; preserve that matchup in the pool slate.
+    if(week===6&&!games.some(g=>g.away==="WAS"&&g.home==="SF")){
+      games.push({week,away:"WAS",home:"SF",gameday:"2026-10-19",gametime:"20:15"});
+    }
     games.sort((a,b)=>(a.gameday+"T"+a.gametime).localeCompare(b.gameday+"T"+b.gametime));
     res.setHeader("Cache-Control","s-maxage=3600, stale-while-revalidate=21600");
     res.status(200).json({week,games,updatedAt:new Date().toISOString()});
