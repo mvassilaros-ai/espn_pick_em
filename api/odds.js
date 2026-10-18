@@ -168,7 +168,7 @@ export default async function handler(req,res){
     }
     const url=new URL("https://api.sportsgameodds.com/v2/events");
     url.searchParams.set("leagueID","NFL");
-    url.searchParams.set("oddsAvailable","true");
+    // Do not filter out fixtures lacking an available odds flag; include them for diagnostics.
     // Include started events: some providers flag games as started before kickoff;
     // match by schedule on client and reject expired markets when necessary.
     // Limit to the current NFL slate rather than every open NFL event.
@@ -182,7 +182,7 @@ export default async function handler(req,res){
     url.searchParams.set("startsAfter",historyStart.toISOString());
     url.searchParams.set("startsBefore",end.toISOString());
     // Do not exclude completed games: users can review prior NFL weeks.
-    url.searchParams.set("type","match");
+    // Do not impose a provider event-type filter that may exclude NFL fixtures.
     url.searchParams.set("limit","100");
     // Fetch complete event markets; restrictive oddID filtering can omit games and totals.
 
