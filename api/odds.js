@@ -9,7 +9,9 @@ function normTeam(t){
 }
 function teamAbbr(side){
   const t=side||{};
-  return normTeam(t.abbreviation||t.names?.short||t.name||t.teamID||"");
+  const raw=t.abbreviation||t.names?.short||t.name||t.teamID||"";
+  const full={"Washington Commanders":"WAS","San Francisco 49ers":"SF","Los Angeles Rams":"LA","Jacksonville Jaguars":"JAX"};
+  return normTeam(full[raw]||raw);
 }
 function strictNumber(v){
   if(v===null||v===undefined||v==="") return null;
@@ -57,14 +59,17 @@ function spreadRecords(ev){
     const side=String(o.sideID||"").toLowerCase();
 
     // Full-game point spread only.
-    if(period!=="game" || bet!=="sp") continue;
-    if(side!=="home" && side!=="away") continue;
+    const keySide=key.match(/(?:^|-)sp-(home|away)$/i)?.[1]?.toLowerCase();
+    const actualSide=(side==="home"||side==="away")?side:keySide;
+    if(period && period!=="game") continue;
+    if(bet && bet!=="sp") continue;
+    if(actualSide!=="home" && actualSide!=="away") continue;
 
     // Prefer a team spread record rather than a total/other market.
     const statEntity=String(o.statEntityID||"").toLowerCase();
-    if(statEntity && statEntity!==side) continue;
+    if(statEntity && statEntity!=="all" && statEntity!==actualSide) continue;
 
-    if(!out[side]) out[side]=o;
+    if(!out[actualSide]) out[actualSide]=o;
   }
   return out;
 }
@@ -246,7 +251,7 @@ export default async function handler(req,res){
 
     // Shared Vercel CDN cache; do not consume a provider request per browser refresh.
     res.setHeader("Cache-Control","public, s-maxage=900, stale-while-revalidate=3600");
-    const payload={games,eventCount:events.length,validCount:games.filter(g=>g.valid).length,updatedAt:new Date().toISOString()};
+    const payload={games,eventCount:events.length,validCount:games.filter(g=>g.valid).length,updatedAt:new Date().toISOString(),provider:"SportsGameOdds"};
     if(payload.validCount>0) lastGood=payload;
     return res.status(200).json(payload);
 
