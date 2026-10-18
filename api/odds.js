@@ -175,11 +175,12 @@ export default async function handler(req,res){
     const mondayOffset=(day+6)%7;
     const monday=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-mondayOffset));
     const end=new Date(monday.getTime()+8*86400000);
-    url.searchParams.set("startsAfter",monday.toISOString());
+    const historyStart=new Date(monday.getTime()-14*86400000);
+    url.searchParams.set("startsAfter",historyStart.toISOString());
     url.searchParams.set("startsBefore",end.toISOString());
     // Do not exclude completed games: users can review prior NFL weeks.
     url.searchParams.set("type","match");
-    url.searchParams.set("limit","25");
+    url.searchParams.set("limit","100");
     // Fetch complete event markets; restrictive oddID filtering can omit games and totals.
 
     if(!pendingRequest){
