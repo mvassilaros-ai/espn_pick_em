@@ -177,7 +177,7 @@ export default async function handler(req,res){
     const end=new Date(monday.getTime()+8*86400000);
     url.searchParams.set("startsAfter",monday.toISOString());
     url.searchParams.set("startsBefore",end.toISOString());
-    url.searchParams.set("started","false");
+    // Do not exclude completed games: users can review prior NFL weeks.
     url.searchParams.set("type","match");
     url.searchParams.set("limit","25");
     // Fetch complete event markets; restrictive oddID filtering can omit games and totals.
