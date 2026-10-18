@@ -2,16 +2,19 @@
 let pendingRequest=null;
 let blockedUntil=0;
 let lastGood=null;
+const TEAM_ALIASES={
+ ARI:["ARI","ARIZONA","ARIZONA CARDINALS","CARDINALS"],ATL:["ATL","ATLANTA","ATLANTA FALCONS","FALCONS"],BAL:["BAL","BALTIMORE","BALTIMORE RAVENS","RAVENS"],BUF:["BUF","BUFFALO","BUFFALO BILLS","BILLS"],CAR:["CAR","CAROLINA","CAROLINA PANTHERS","PANTHERS"],CHI:["CHI","CHICAGO","CHICAGO BEARS","BEARS"],CIN:["CIN","CINCINNATI","CINCINNATI BENGALS","BENGALS"],CLE:["CLE","CLEVELAND","CLEVELAND BROWNS","BROWNS"],DAL:["DAL","DALLAS","DALLAS COWBOYS","COWBOYS"],DEN:["DEN","DENVER","DENVER BRONCOS","BRONCOS"],DET:["DET","DETROIT","DETROIT LIONS","LIONS"],GB:["GB","GNB","GREEN BAY","GREEN BAY PACKERS","PACKERS"],HOU:["HOU","HOUSTON","HOUSTON TEXANS","TEXANS"],IND:["IND","INDIANAPOLIS","INDIANAPOLIS COLTS","COLTS"],JAX:["JAX","JAC","JACKSONVILLE","JACKSONVILLE JAGUARS","JAGUARS"],KC:["KC","KAN","KANSAS CITY","KANSAS CITY CHIEFS","CHIEFS"],LV:["LV","LVR","OAK","LAS VEGAS","LAS VEGAS RAIDERS","RAIDERS"],LA:["LA","LAR","LOS ANGELES RAMS","RAMS"],LAC:["LAC","LOS ANGELES CHARGERS","CHARGERS"],MIA:["MIA","MIAMI","MIAMI DOLPHINS","DOLPHINS"],MIN:["MIN","MINNESOTA","MINNESOTA VIKINGS","VIKINGS"],NE:["NE","NWE","NEW ENGLAND","NEW ENGLAND PATRIOTS","PATRIOTS"],NO:["NO","NOR","NEW ORLEANS","NEW ORLEANS SAINTS","SAINTS"],NYG:["NYG","NEW YORK GIANTS","GIANTS"],NYJ:["NYJ","NEW YORK JETS","JETS"],PHI:["PHI","PHILADELPHIA","PHILADELPHIA EAGLES","EAGLES"],PIT:["PIT","PITTSBURGH","PITTSBURGH STEELERS","STEELERS"],SF:["SF","SFO","SAN FRANCISCO","SAN FRANCISCO 49ERS","49ERS","NINERS"],SEA:["SEA","SEATTLE","SEATTLE SEAHAWKS","SEAHAWKS"],TB:["TB","TAM","TAMPA BAY","TAMPA BAY BUCCANEERS","BUCCANEERS"],TEN:["TEN","TENNESSEE","TENNESSEE TITANS","TITANS"],WAS:["WAS","WSH","WASHINGTON","WASHINGTON COMMANDERS","COMMANDERS"]
+};
+const TEAM_LOOKUP=new Map(Object.entries(TEAM_ALIASES).flatMap(([abbr,aliases])=>aliases.map(a=>[a,abbr])));
 function normTeam(t){
-  const m={LAR:"LA",WSH:"WAS",OAK:"LV",JAC:"JAX"};
-  t=String(t||"").toUpperCase();
-  return m[t]||t;
+ const raw=String(t||"").trim().toUpperCase().replace(/\\s+/g," ");
+ return TEAM_LOOKUP.get(raw)||raw;
 }
 function teamAbbr(side){
-  const t=side||{};
-  const raw=t.abbreviation||t.names?.short||t.name||t.teamID||"";
-  const full={"Washington Commanders":"WAS","San Francisco 49ers":"SF","Los Angeles Rams":"LA","Jacksonville Jaguars":"JAX"};
-  return normTeam(full[raw]||raw);
+ const t=side||{};
+ const candidates=[t.abbreviation,t.names?.short,t.names?.long,t.names?.full,t.name,t.teamID,t.displayName];
+ for(const candidate of candidates){const code=normTeam(candidate);if(TEAM_ALIASES[code])return code;}
+ return normTeam(candidates.find(Boolean)||"");
 }
 function strictNumber(v){
   if(v===null||v===undefined||v==="") return null;
