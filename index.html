@@ -283,18 +283,18 @@ async function refreshOdds(){
     if(!r.ok)throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0,300)}`);
     const obj=await r.json(),live=obj.games||[];
     localStorage.setItem("ats_last_verified_odds_2026",JSON.stringify(obj));
-    let n=0,rejected=0;
+    let n=0,rejected=0;const missing=[];
     for(const g of games){
       const x=live.find(v=>v.home===g.home&&v.away===g.away);
-      if(!x) continue;
-      if(!x.valid){rejected++;continue;}
+      if(!x){missing.push(`${g.away}@${g.home}: no matching event`);continue;}
+      if(!x.valid){rejected++;missing.push(`${g.away}@${g.home}: ${x.warning||"unverified spread"}`);continue;}
       if(Number.isFinite(Number(x.marketTotal))&&x.marketTotal!==null){g.marketTotal=Number(x.marketTotal);}
       g.market_spread=x.homeSpread;
       g.market_detail=`${x.away} ${sgn(x.awaySpread)} / ${x.home} ${sgn(x.homeSpread)} · ${x.method}${x.bookDetail?` · ${x.bookDetail}`:""}`;
       n++;
     }
     savePoolLines();
-    $("oddsMsg").textContent=`Verified ${n} live game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. Missing lines stay blank; Pool Lines unchanged.`;
+    $("oddsMsg").textContent=`Verified ${n}/${games.length} game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. ${missing.length?"Missing: "+missing.join(" | "):"All games matched."} Pool Lines unchanged.`;
     render();
   }catch(e){
     const cached=localStorage.getItem("ats_last_verified_odds_2026");
