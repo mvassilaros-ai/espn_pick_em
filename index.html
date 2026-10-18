@@ -287,14 +287,14 @@ async function refreshOdds(){
     for(const g of games){
       const x=live.find(v=>v.home===g.home&&v.away===g.away);
       if(!x){missing.push(`${g.away}@${g.home}: no matching event`);continue;}
+      if(x.marketTotal!==null&&x.marketTotal!==undefined&&Number.isFinite(Number(x.marketTotal))){g.marketTotal=Number(x.marketTotal);}
       if(!x.valid){rejected++;missing.push(`${g.away}@${g.home}: ${x.warning||"unverified spread"}`);continue;}
-      if(Number.isFinite(Number(x.marketTotal))&&x.marketTotal!==null){g.marketTotal=Number(x.marketTotal);}
       g.market_spread=x.homeSpread;
       g.market_detail=`${x.away} ${sgn(x.awaySpread)} / ${x.home} ${sgn(x.homeSpread)} · ${x.method}${x.bookDetail?` · ${x.bookDetail}`:""}`;
       n++;
     }
     savePoolLines();
-    $("oddsMsg").textContent=`Verified ${n}/${games.length} game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. ${missing.length?"Missing: "+missing.join(" | "):"All games matched."} Pool Lines unchanged.`;
+    $("oddsMsg").textContent=`Provider: ${obj.provider||"SportsGameOdds"}${obj.stale?" (STALE)":""} · Verified ${n}/${games.length} game spreads${rejected?` · rejected ${rejected} invalid rows`:""} · API saw ${obj.eventCount??"?"} NFL events / ${obj.validCount??"?"} valid spread markets. ${missing.length?"Missing: "+missing.join(" | "):"All games matched."} Pool Lines unchanged.`;
     render();
   }catch(e){
     const cached=localStorage.getItem("ats_last_verified_odds_2026");
