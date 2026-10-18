@@ -253,9 +253,27 @@ export default async function handler(req,res){
       });
     }
 
+    // Supplement incomplete primary feeds with a separately verified backup market.
+    // Never replace a valid primary spread or manufacture a line.
+    let backupStatus="not configured";
+    if(process.env.THE_ODDS_API_KEY){
+      try{
+        const secondary=await backupOdds();
+        let added=0;
+        for(const candidate of secondary.games){
+          if(!candidate.valid)continue;
+          const existing=games.find(g=>g.home===candidate.home&&g.away===candidate.away);
+          if(existing?.valid)continue;
+          if(existing)Object.assign(existing,candidate,{method:"backup: "+candidate.method});
+          else games.push({...candidate,method:"backup: "+candidate.method});
+          added++;
+        }
+        backupStatus="verified "+secondary.validCount+"; supplemented "+added;
+      }catch(e){backupStatus="unavailable: "+e.message;}
+    }
     // Shared Vercel CDN cache; do not consume a provider request per browser refresh.
     res.setHeader("Cache-Control","public, s-maxage=900, stale-while-revalidate=3600");
-    const payload={games,eventCount:events.length,validCount:games.filter(g=>g.valid).length,updatedAt:new Date().toISOString(),provider:"SportsGameOdds"};
+    const payload={games,eventCount:events.length,validCount:games.filter(g=>g.valid).length,updatedAt:new Date().toISOString(),provider:"SportsGameOdds + optional The Odds API",backupStatus};
     if(payload.validCount>0) lastGood=payload;
     return res.status(200).json(payload);
 
