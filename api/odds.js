@@ -174,9 +174,8 @@ export default async function handler(req,res){
     url.searchParams.set("startsBefore",end.toISOString());
     url.searchParams.set("started","false");
     url.searchParams.set("type","match");
-    url.searchParams.set("oddID","points-home-game-sp-home,points-away-game-sp-away");
     url.searchParams.set("limit","25");
-    // Deliberately do not filter by oddID. We inspect actual returned markets.
+    // Fetch complete event markets; restrictive oddID filtering can omit games and totals.
 
     if(!pendingRequest){
       pendingRequest=fetch(url,{headers:{"x-api-key":apiKey.trim()}}).then(async r=>{
